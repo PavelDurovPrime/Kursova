@@ -1,0 +1,46 @@
+{
+  "students": [
+    {
+      "id": 1,
+      "fullName": "Олександр Петренко",
+      "group": "ІП-11"
+    },
+    {
+      "id": 2,
+      "fullName": "Марія Ковальчук",
+      "group": "ІП-11"
+    },
+    {
+      "id": 3,
+      "fullName": "Дмитро Сидоренко",
+      "group": "ІП-12"
+    },
+    {
+      "id": 4,
+      "fullName": "Анна Мельник",
+      "group": "ІП-12"
+    },
+    {
+      "id": 5,
+      "fullName": "Ігор Ткаченко",
+      "group": "ІП-11"
+    }
+  ],
+  "grades": [
+    { "studentId": 1, "subject": "Математика", "value": 95, "semester": 1, "attendedLessons": 10, "totalLessons": 10 },
+    { "studentId": 1, "subject": "Фізика", "value": 88, "semester": 1, "attendedLessons": 8, "totalLessons": 10 },
+    { "studentId": 1, "subject": "Програмування", "value": 92, "semester": 1, "attendedLessons": 12, "totalLessons": 12 },
+    { "studentId": 2, "subject": "Математика", "value": 75, "semester": 1, "attendedLessons": 9, "totalLessons": 10 },
+    { "studentId": 2, "subject": "Фізика", "value": 82, "semester": 1, "attendedLessons": 10, "totalLessons": 10 },
+    { "studentId": 2, "subject": "Програмування", "value": 78, "semester": 1, "attendedLessons": 11, "totalLessons": 12 },
+    { "studentId": 3, "subject": "Математика", "value": 60, "semester": 1, "attendedLessons": 5, "totalLessons": 10 },
+    { "studentId": 3, "subject": "Фізика", "value": 55, "semester": 1, "attendedLessons": 4, "totalLessons": 10 },
+    { "studentId": 3, "subject": "Програмування", "value": 65, "semester": 1, "attendedLessons": 10, "totalLessons": 12 },
+    { "studentId": 4, "subject": "Математика", "value": 98, "semester": 1, "attendedLessons": 10, "totalLessons": 10 },
+    { "studentId": 4, "subject": "Фізика", "value": 94, "semester": 1, "attendedLessons": 10, "totalLessons": 10 },
+    { "studentId": 4, "subject": "Програмування", "value": 100, "semester": 1, "attendedLessons": 12, "totalLessons": 12 },
+    { "studentId": 5, "subject": "Математика", "value": 45, "semester": 1, "attendedLessons": 3, "totalLessons": 10 },
+    { "studentId": 5, "subject": "Фізика", "value": 50, "semester": 1, "attendedLessons": 5, "totalLessons": 10 },
+    { "studentId": 5, "subject": "Програмування", "value": 58, "semester": 1, "attendedLessons": 6, "totalLessons": 12 }
+  ]
+}
