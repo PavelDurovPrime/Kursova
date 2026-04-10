@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="gradelogic-public-base" content="" />
+  <title>GradeTier — Аналітика успішності</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 12L12 22L22 12L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 6L6 12L12 18L18 12L12 6Z" fill="currentColor"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">GradeTier</h1>
+          <p class="brand-sub">Smart Analytics Hub</p>
+        </div>
+      </div>
+      <div class="header-side">
+        <nav class="header-nav" aria-label="Навігація">
+          <a class="btn btn-primary" href="index.html" aria-current="page">Аналітика</a>
+          <a class="btn btn-secondary" href="rating.html">Рейтинг груп</a>
+        </nav>
+        <div class="header-meta" id="headerMeta">
+          <span class="pill pill-muted"><span id="metaCount">—</span> студентів</span>
+          <span class="pill pill-accent"><span id="metaGrades">—</span> записів у журналі</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-banner">
+      <p class="header-banner-text">
+               Переглядайте успішність, відкривайте предмети кожного студента та переходьте на сторінку рейтингу груп.
+      </p>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="panel panel-controls" aria-labelledby="filters-heading">
+      <h2 id="filters-heading" class="panel-title">Фільтри та сортування</h2>
+      <form class="filters" id="filterForm">
+        <div class="field">
+          <label for="period">Період навчання</label>
+          <select id="period" name="period">
+            <option value="all" selected>Навчальний рік (I + II сем.)</option>
+            <option value="1">1 семестр</option>
+            <option value="2">2 семестр</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="group">Група</label>
+          <select id="group" name="group">
+            <option value="">Усі групи (весь потік)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sort">Сортування</label>
+          <select id="sort" name="sort">
+            <option value="by-name">За ПІБ (А–Я)</option>
+            <option value="by-average-desc" selected>За середнім балом (спадання)</option>
+            <option value="by-attendance-desc">За відвідуваністю (%)</option>
+            <option value="by-subject-average-desc">За балом з предмета…</option>
+          </select>
+        </div>
+        <div class="field field-subject" id="subjectField" hidden>
+          <label for="subject">Предмет</label>
+          <select id="subject" name="subject"></select>
+        </div>
+        <div class="field">
+          <label for="query">Пошук за ПІБ</label>
+          <input type="search" id="query" name="query" placeholder="Частина прізвища або імені…" autocomplete="off" />
+        </div>
+        <div class="field field-actions">
+          <button type="submit" class="btn btn-primary">Оновити звіт</button>
+          <button type="button" class="btn btn-ghost" id="btnReset">Скинути</button>
+        </div>
+      </form>
+      <p class="hint">Рядок таблиці можна відкрити — побачите всі оцінки студента.</p>
+    </section>
+
+    <section class="panel panel-summary" id="summaryPanel" hidden>
+      <h2 class="panel-title">Статистика вибірки</h2>
+      <div class="stat-cards" id="statCards"></div>
+    </section>
+
+    <section class="panel panel-table">
+      <div class="table-toolbar">
+        <div class="table-heading">
+          <h2 class="panel-title table-title" id="reportTitle">Звіт</h2>
+          <p class="report-count" id="reportCountLine" hidden>
+            У звіті: <strong id="reportCountNum">0</strong>
+            <span id="reportCountWord">студентів</span>
+          </p>
+        </div>
+        <div class="toolbar-actions">
+          <a class="btn btn-secondary" id="exportPdf" href="#">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            Експорт PDF
+          </a>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="skeleton-loading" id="skeletonLoading">
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+          <div class="skeleton skeleton-row"></div>
+        </div>
+        <div class="loading" id="loading" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Завантаження…</span>
+        </div>
+        <div class="error-banner" id="errorBanner" hidden role="alert"></div>
+        <table class="data-table" id="dataTable" hidden>
+          <thead>
+            <tr>
+              <th scope="col" style="width: 40px;"></th>
+              <th scope="col">ПІБ</th>
+              <th scope="col">Група</th>
+              <th scope="col" class="num">Середній</th>
+              <th scope="col" class="num">Відвід. %</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <p class="empty-state" id="emptyState" hidden>За цими умовами записів немає.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-logo-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 12L12 22L22 12L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 6L6 12L12 18L18 12L12 6Z" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="footer-brand-name">GradeTier</span>
+        </div>
+        <div class="footer-socials">
+          <a href="https://t.me/headlinerv1p" target="_blank" class="footer-social-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            Telegram-чат
+          </a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="footer-copyright">
+          © 2026 TierLogic. All rights reserved.
+        </div>
+        <div class="footer-dev">
+          Developed by <span>Черноплечий Андрій Сергійович</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden></div>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal-card">
+      <header class="modal-head">
+        <h3 id="modalTitle">Студент</h3>
+        <button type="button" class="btn-close" id="modalClose" aria-label="Закрити">×</button>
+      </header>
+      <p class="modal-sub" id="modalSub"></p>
+      <div class="modal-body">
+        <table class="modal-table modal-table-detail">
+          <thead>
+            <tr>
+              <th>Предмет</th>
+              <th class="num">Сем.</th>
+              <th class="num">Бал</th>
+              <th class="center">Відвідуваність</th>
+            </tr>
+          </thead>
+          <tbody id="modalGradesBody"></tbody>
+        </table>
+        <p class="modal-avg" id="modalAvg"></p>
+        <div class="chart-container" id="chartContainer" hidden>
+          <h4 class="chart-title">Динаміка успішності</h4>
+          <canvas id="trendChart"></canvas>
+        </div>
+        <div id="subjectDetails" class="subject-details" hidden>
+          <h4 class="subject-details-title" id="subjectDetailsTitle"></h4>
+          <table class="modal-table lessons-table">
+            <thead>
+              <tr>
+                <th>Дата заняття</th>
+                <th class="num">Бал</th>
+                <th class="center">Присутність</th>
+                <th class="num">Бал / Н</th>
+              </tr>
+            </thead>
+            <tbody id="subjectDetailsBody"></tbody>
+          </table>
+          <button type="button" class="btn btn-ghost btn-sm" id="btnBackToGrades">Назад до списку</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

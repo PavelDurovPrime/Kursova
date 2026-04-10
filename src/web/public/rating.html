@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="gradelogic-public-base" content="" />
+  <title>Рейтинг груп — GradeTier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="footer-gradient"></div>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 12L12 22L22 12L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 6L6 12L12 18L18 12L12 6Z" fill="currentColor"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">GradeTier</h1>
+          <p class="brand-sub">Smart Analytics Hub</p>
+        </div>
+      </div>
+      <div class="header-side">
+        <nav class="header-nav" aria-label="Навігація">
+          <a class="btn btn-secondary" href="index.html">Аналітика</a>
+          <a class="btn btn-primary" href="rating.html" aria-current="page">Рейтинг груп</a>
+        </nav>
+        <div class="header-meta" id="headerMeta">
+          <span class="pill pill-muted"><span id="metaGroups">—</span> груп</span>
+          <span class="pill pill-accent"><span id="metaStudents">—</span> студентів</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Group Rating - First Section -->
+    <section class="panel panel-rating">
+      <h2 class="panel-title">Рейтинг груп за середнім балом</h2>
+      <div class="rating-list" id="ratingList">
+        <div class="loading" id="loading">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Завантаження рейтингу…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Special Nominations -->
+    <section class="panel panel-nominations" id="nominationsPanel">
+      <h2 class="panel-title">🏆 Спеціальні номінації</h2>
+      <div class="nominations-grid">
+        <div class="nomination-card" id="topAttendance">
+          <div class="nomination-icon">📋</div>
+          <div class="nomination-title">Top Attendance</div>
+          <div class="nomination-group">—</div>
+          <div class="nomination-value">—</div>
+        </div>
+        <div class="nomination-card" id="mostImproved">
+          <div class="nomination-icon">📈</div>
+          <div class="nomination-title">Most Improved</div>
+          <div class="nomination-group">—</div>
+          <div class="nomination-value">—</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-logo-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 12L12 22L22 12L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 6L6 12L12 18L18 12L12 6Z" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="footer-brand-name">GradeTier</span>
+        </div>
+        <div class="footer-socials">
+          <a href="https://t.me/headlinerv1p" target="_blank" class="footer-social-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            Telegram-чат
+          </a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="footer-copyright">
+          © 2026 TierLogic. All rights reserved.
+        </div>
+        <div class="footer-dev">
+          Developed by <span>Черноплечий Андрій Сергійович</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden></div>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal-card">
+      <header class="modal-head">
+        <h3 id="modalTitle">Група</h3>
+        <button type="button" class="btn-close" id="modalClose" aria-label="Закрити">×</button>
+      </header>
+      <div class="modal-body">
+        <div id="groupStats" class="group-stats">
+          <div class="stat-grid">
+            <div class="stat-item">
+              <span class="stat-label">Середній бал</span>
+              <span class="stat-value" id="groupAvg">—</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Студентів</span>
+              <span class="stat-value" id="groupCount">—</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Відвідуваність</span>
+              <span class="stat-value" id="groupAttendance">—</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Відмінники</span>
+              <span class="stat-value" id="groupExcellent">—</span>
+            </div>
+          </div>
+          <h4 class="modal-sub-title">Найкращі студенти групи</h4>
+          <ul class="best-students-list" id="bestStudentsList"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="rating.js"></script>
+</body>
+</html>
