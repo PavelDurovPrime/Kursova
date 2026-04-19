@@ -10,7 +10,19 @@
   "scripts": {
     "start": "node src/index.js",
     "web": "node src/web/server.js",
-    "dev": "node src/web/server.js"
+    "dev": "node src/web/server.js",
+    "demo:generators": "node examples/generators.demo.js",
+    "demo:memo": "node examples/memo.demo.js",
+    "demo:async-map": "node examples/async-map.demo.js",
+    "demo:reactive": "node examples/reactive.demo.js",
+    "lint": "eslint src scripts examples test eslint.config.js && prettier --check \"src/**/*.js\" \"scripts/**/*.js\" \"examples/**/*.js\" \"test/**/*.js\" \"*.json\" \"README.md\"",
+    "format": "eslint src scripts examples test eslint.config.js --fix && prettier --write \"src/**/*.js\" \"scripts/**/*.js\" \"examples/**/*.js\" \"test/**/*.js\" \"*.json\" \"README.md\"",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "smoke:api": "node scripts/smoke-api.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate:json": "node scripts/migrate-json-to-sqlite.js",
+    "prepare": "husky"
   },
   "keywords": [
     "student-grades",
@@ -22,9 +34,29 @@
   "author": "",
   "license": "UNLICENSED",
   "dependencies": {
+    "@prisma/client": "^6.6.0",
     "ajv": "^8.17.1",
+    "bcryptjs": "^3.0.2",
     "chalk": "^4.1.2",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "csv-parse": "^5.6.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.8.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.2",
+    "swagger-ui-express": "^5.0.1",
+    "ws": "^8.18.3",
+    "yamljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.24.0",
+    "eslint-config-metarhia": "^9.0.1",
+    "husky": "^9.1.7",
+    "metaskills": "^1.0.4",
+    "prettier": "^3.5.3",
+    "prisma": "^6.6.0",
+    "supertest": "^7.1.1"
   }
 }

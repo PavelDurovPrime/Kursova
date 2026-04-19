@@ -1,0 +1,56 @@
+openapi: 3.0.3
+info:
+  title: GradeLogic API
+  version: 1.0.0
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /auth/login:
+    post:
+      summary: Login and receive JWT
+      requestBody:
+        required: true
+      responses:
+        '200':
+          description: Access token
+  /report:
+    get:
+      summary: Report with pagination
+      responses:
+        '200':
+          description: Report payload
+  /grades:
+    post:
+      summary: Create grade
+      responses:
+        '201':
+          description: Grade created
+  /grades/{id}:
+    patch:
+      summary: Update grade
+      responses:
+        '200':
+          description: Grade updated
+    delete:
+      summary: Delete grade
+      responses:
+        '204':
+          description: Grade deleted
+  /grades/import:
+    post:
+      summary: CSV bulk import
+      responses:
+        '200':
+          description: Import result
+  /audit:
+    get:
+      summary: Audit log list
+      responses:
+        '200':
+          description: Audit payload

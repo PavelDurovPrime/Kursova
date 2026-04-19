@@ -16,6 +16,8 @@ logs/*.log
 # Data files (except sample)
 data/*.json
 !data/grades.json
+data/*.db
+prisma/data/*.db
 
 # OS generated files
 .DS_Store
@@ -45,3 +47,4 @@ coverage/
 # Build output
 dist/
 build/
+*/skills/metaskills
