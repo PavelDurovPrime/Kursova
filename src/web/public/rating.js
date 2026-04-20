@@ -16,7 +16,6 @@
   const topAttendanceCard = $('#topAttendance');
   const mostImprovedCard = $('#mostImproved');
 
-  let groupsData = [];
   let groupsChartInstance = null;
 
   function publicBasePath() {
@@ -33,24 +32,16 @@
   }
 
   function getMedal(index) {
-    if (index === 0) return '<span class="crown-icon" title="1 місце">👑</span>';
-    if (index === 1) return '<span class="crown-icon" title="2 місце">🥈</span>';
-    if (index === 2) return '<span class="crown-icon" title="3 місце">🥉</span>';
+    if (index === 0) {
+      return '<span class="crown-icon" title="1 місце">👑</span>';
+    }
+    if (index === 1) {
+      return '<span class="crown-icon" title="2 місце">🥈</span>';
+    }
+    if (index === 2) {
+      return '<span class="crown-icon" title="3 місце">🥉</span>';
+    }
     return `<span class="rank-num">${index + 1}</span>`;
-  }
-
-  function getMedal(index) {
-    if (index === 0) return '<span class="crown-icon" title="1 місце">👑</span>';
-    if (index === 1) return '<span class="crown-icon" title="2 місце">🥈</span>';
-    if (index === 2) return '<span class="crown-icon" title="3 місце">🥉</span>';
-    return `<span class="rank-num">${index + 1}</span>`;
-  }
-
-  function getProgressClass(score) {
-    if (score >= 90) return 'progress-excellent';
-    if (score >= 75) return 'progress-good';
-    if (score >= 60) return 'progress-average';
-    return 'progress-poor';
   }
 
   function getInitials(name) {
@@ -70,40 +61,53 @@
     }
 
     const topGroups = groups.slice(0, 5);
-    const labels = topGroups.map(g => g.groupName);
 
-    const avgScores = topGroups.map(g => parseFloat(g.averageGrade) || 0);
-    const attendanceScores = topGroups.map(g => {
-      const att = parseFloat(g.averageAttendance) || parseFloat(g.attendance) || 0;
+    const avgScores = topGroups.map((g) => parseFloat(g.averageGrade) || 0);
+    const attendanceScores = topGroups.map((g) => {
+      const att =
+        parseFloat(g.averageAttendance) || parseFloat(g.attendance) || 0;
       return att;
     });
-    const excellentScores = topGroups.map(g => {
-      const exc = g.topStudents ? g.topStudents.filter(s => (parseFloat(s.average) || 0) >= 90).length : 0;
+    const excellentScores = topGroups.map((g) => {
+      const exc = g.topStudents
+        ? g.topStudents.filter((s) => (parseFloat(s.average) || 0) >= 90).length
+        : 0;
       const total = g.studentCount || 1;
       return Math.round((exc / total) * 100);
     });
-    const studentCounts = topGroups.map(g => {
-      const maxStudents = Math.max(...topGroups.map(gr => gr.studentCount || 0)) || 1;
+    const studentCounts = topGroups.map((g) => {
+      const maxStudents =
+        Math.max(...topGroups.map((gr) => gr.studentCount || 0)) || 1;
       return Math.round(((g.studentCount || 0) / maxStudents) * 100);
     });
 
     const ctx = groupsChartCanvas.getContext('2d');
 
-    groupsChartInstance = new Chart(ctx, {
+    groupsChartInstance = new window.Chart(ctx, {
       type: 'radar',
       data: {
-        labels: ['Середній бал', 'Відвідуваність', 'Відмінники (%)', 'Кількість студентів'],
+        labels: [
+          'Середній бал',
+          'Відвідуваність',
+          'Відмінники (%)',
+          'Кількість студентів',
+        ],
         datasets: topGroups.map((g, i) => {
           const colors = [
             { border: '#fbbf24', bg: 'rgba(251, 191, 36, 0.15)' },
             { border: '#94a3b8', bg: 'rgba(148, 163, 184, 0.15)' },
             { border: '#d97706', bg: 'rgba(217, 119, 6, 0.15)' },
             { border: '#64748b', bg: 'rgba(100, 116, 139, 0.15)' },
-            { border: '#0f172a', bg: 'rgba(15, 23, 42, 0.1)' }
+            { border: '#0f172a', bg: 'rgba(15, 23, 42, 0.1)' },
           ];
           return {
             label: g.groupName,
-            data: [avgScores[i], attendanceScores[i], excellentScores[i], studentCounts[i]],
+            data: [
+              avgScores[i],
+              attendanceScores[i],
+              excellentScores[i],
+              studentCounts[i],
+            ],
             borderColor: colors[i]?.border || '#64748b',
             backgroundColor: colors[i]?.bg || 'rgba(100, 116, 139, 0.1)',
             borderWidth: 2,
@@ -112,9 +116,9 @@
             pointBorderWidth: 2,
             pointRadius: 4,
             pointHoverRadius: 6,
-            fill: true
+            fill: true,
           };
-        })
+        }),
       },
       options: {
         responsive: true,
@@ -126,31 +130,42 @@
               padding: 20,
               font: { size: 12, weight: '600' },
               usePointStyle: true,
-              pointStyle: 'circle'
-            }
+              pointStyle: 'circle',
+            },
           },
           tooltip: {
             callbacks: {
-              label: function(context) {
+              label(context) {
                 const groupIdx = context.datasetIndex;
                 const metricIdx = context.dataIndex;
                 const group = topGroups[groupIdx];
                 const value = context.raw;
 
-                if (metricIdx === 0) return `${group.groupName}: Середній бал ${group.averageGradeFormatted || value}`;
+                if (metricIdx === 0) {
+                  return `${group.groupName}: Середній бал ${group.averageGradeFormatted || value}`;
+                }
                 if (metricIdx === 1) {
-                  const att = parseFloat(group.averageAttendance) || parseFloat(group.attendance) || 0;
+                  const att =
+                    parseFloat(group.averageAttendance) ||
+                    parseFloat(group.attendance) ||
+                    0;
                   return `${group.groupName}: Відвідуваність ${att.toFixed(1)}%`;
                 }
                 if (metricIdx === 2) {
-                  const exc = group.topStudents ? group.topStudents.filter(s => (parseFloat(s.average) || 0) >= 90).length : 0;
+                  const exc = group.topStudents
+                    ? group.topStudents.filter(
+                        (s) => (parseFloat(s.average) || 0) >= 90,
+                      ).length
+                    : 0;
                   return `${group.groupName}: Відмінників ${exc}`;
                 }
-                if (metricIdx === 3) return `${group.groupName}: Студентів ${group.studentCount || 0}`;
+                if (metricIdx === 3) {
+                  return `${group.groupName}: Студентів ${group.studentCount || 0}`;
+                }
                 return `${context.dataset.label}: ${value}`;
-              }
-            }
-          }
+              },
+            },
+          },
         },
         scales: {
           r: {
@@ -161,32 +176,40 @@
               stepSize: 20,
               backdropColor: 'transparent',
               color: '#64748b',
-              font: { size: 10 }
+              font: { size: 10 },
             },
             grid: { color: 'rgba(0, 0, 0, 0.05)' },
             angleLines: { color: 'rgba(0, 0, 0, 0.05)' },
             pointLabels: {
               color: '#334155',
               font: { size: 12, weight: '600' },
-              padding: 20
-            }
-          }
-        }
-      }
+              padding: 20,
+            },
+          },
+        },
+      },
     });
   }
 
   function renderNominations(groups) {
     if (!groups || groups.length === 0) return;
     const topAttGroup = groups.reduce((best, current) => {
-      const bestAtt = parseFloat(best.averageAttendance) || parseFloat(best.attendance) || 0;
-      const currAtt = parseFloat(current.averageAttendance) || parseFloat(current.attendance) || 0;
+      const bestAtt =
+        parseFloat(best.averageAttendance) || parseFloat(best.attendance) || 0;
+      const currAtt =
+        parseFloat(current.averageAttendance) ||
+        parseFloat(current.attendance) ||
+        0;
       return currAtt > bestAtt ? current : best;
     }, groups[0]);
     if (topAttendanceCard && topAttGroup) {
-      const attValue = parseFloat(topAttGroup.averageAttendance) || parseFloat(topAttGroup.attendance) || 0;
-      topAttendanceCard.querySelector('.nomination-group').textContent = topAttGroup.groupName;
-      topAttendanceCard.querySelector('.nomination-value').textContent = 
+      const attValue =
+        parseFloat(topAttGroup.averageAttendance) ||
+        parseFloat(topAttGroup.attendance) ||
+        0;
+      topAttendanceCard.querySelector('.nomination-group').textContent =
+        topAttGroup.groupName;
+      topAttendanceCard.querySelector('.nomination-value').textContent =
         `${attValue.toFixed(1)}% відвідуваність`;
     }
     const mostImproved = groups.reduce((best, current) => {
@@ -195,8 +218,9 @@
       return currAvg > bestAvg ? current : best;
     }, groups[0]);
     if (mostImprovedCard && mostImproved) {
-      mostImprovedCard.querySelector('.nomination-group').textContent = mostImproved.groupName;
-      mostImprovedCard.querySelector('.nomination-value').textContent = 
+      mostImprovedCard.querySelector('.nomination-group').textContent =
+        mostImproved.groupName;
+      mostImprovedCard.querySelector('.nomination-value').textContent =
         `${mostImproved.averageGradeFormatted || mostImproved.averageGrade} середній бал`;
     }
   }
@@ -218,9 +242,9 @@
       const res = await fetch(apiUrl('/group-rating'));
       if (!res.ok) throw new Error('Не вдалося завантажити рейтинг');
       const data = await res.json();
-      groupsData = data;
       renderRating(data);
       renderNominations(data);
+      renderGroupsChart(data);
     } catch (e) {
       ratingList.innerHTML = `<div class="error-banner">${e.message}</div>`;
     }
@@ -230,19 +254,22 @@
     modalTitle.textContent = `Група ${group.groupName}`;
     groupAvg.textContent = group.averageGradeFormatted;
     groupCount.textContent = group.studentCount;
-    
-    const attValue = parseFloat(group.averageAttendance) || parseFloat(group.attendance) || 0;
+
+    const attValue =
+      parseFloat(group.averageAttendance) || parseFloat(group.attendance) || 0;
     if (attValue > 0) {
-      groupAttendance.textContent = attValue.toFixed(1) + '%';
+      groupAttendance.textContent = `${attValue.toFixed(1)}%`;
       groupAttendance.style.color = '';
     } else {
       groupAttendance.textContent = 'н/д';
       groupAttendance.style.color = '#94a3b8';
     }
-    
+
     let excellentCount = 0;
     if (group.topStudents) {
-      excellentCount = group.topStudents.filter(s => (parseFloat(s.average) || 0) >= 90).length;
+      excellentCount = group.topStudents.filter(
+        (s) => (parseFloat(s.average) || 0) >= 90,
+      ).length;
     }
     groupExcellent.textContent = excellentCount;
     bestStudentsList.innerHTML = '';
@@ -252,7 +279,9 @@
         li.className = 'best-student-item';
         const avg = parseFloat(student.average) || 0;
         const hasFireStreak = avg >= 95;
-        const fireIcon = hasFireStreak ? '<span class="fire-streak" title="5+ оцінок 95+">🔥<span class="fire-count">5</span></span>' : '';
+        const fireIcon = hasFireStreak
+          ? '<span class="fire-streak" title="5+ оцінок 95+">🔥<span class="fire-count">5</span></span>'
+          : '';
         li.innerHTML = `
           <span class="student-rank">${index + 1}</span>
           <span class="avatar avatar-small">${getInitials(student.fullName)}</span>
@@ -283,10 +312,16 @@
       card.className = 'rating-card';
       card.style.cursor = 'pointer';
       if (index < 3) card.classList.add(`top-${index + 1}`);
-      const attValue = parseFloat(group.averageAttendance) || parseFloat(group.attendance) || 0;
-      
-      const excellentCount = group.topStudents ? group.topStudents.filter(s => (parseFloat(s.average) || 0) >= 90).length : 0;
-      
+      const attValue =
+        parseFloat(group.averageAttendance) ||
+        parseFloat(group.attendance) ||
+        0;
+
+      const excellentCount = group.topStudents
+        ? group.topStudents.filter((s) => (parseFloat(s.average) || 0) >= 90)
+            .length
+        : 0;
+
       card.innerHTML = `
         <div class="rating-rank">${getMedal(index)}</div>
         <div class="rating-info">

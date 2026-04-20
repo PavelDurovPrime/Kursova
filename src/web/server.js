@@ -1,25 +1,43 @@
-const fs = require('node:fs/promises');
 const path = require('node:path');
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { log } = require('../services/logger');
-const { generateReportHtml, generateReportText } = require('../services/reportExporter');
+const {
+  generateReportHtml,
+  generateReportText,
+} = require('../services/reportExporter');
 const {
   computeWebReport,
   uniqueSubjects,
   uniqueGroups,
-  SubjectRequiredError
+  SubjectRequiredError,
 } = require('./reportApi');
-const { getDataset, clearDatasetCache, resolveDataPath } = require('./dataService');
+const { getDataset, resolveDataPath } = require('./dataService');
+const { isSqliteMode } = require('../repository/repositoryFactory');
 const {
   filterGradesByPeriod,
   normalizePeriod,
   attendanceAggregate,
-  valueToECTS
 } = require('../services/gradeService');
+const { makeApiV1Router } = require('./v1Router');
+const { initWebSocket } = require('../services/realtimeService');
+const { ensureDefaultUsers } = require('../services/authService');
+const {
+  fibonacciGenerator,
+  weekDayGenerator,
+  consumeWithTimeout,
+} = require('../lib/generators');
+const {
+  listRecentDomainEvents,
+  publishDomainEvent,
+} = require('../services/domainEvents');
 
 function normalizeBasePath(raw) {
-  if (!raw || String(raw).trim() === '' || String(raw).trim() === '/') return '';
+  if (!raw || String(raw).trim() === '' || String(raw).trim() === '/') {
+    return '';
+  }
   let s = String(raw).trim();
   if (!s.startsWith('/')) s = `/${s}`;
   return s.replace(/\/$/, '');
@@ -39,6 +57,19 @@ if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
 }
 
 app.disable('x-powered-by');
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  }),
+);
+app.use(
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+);
 
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -49,11 +80,12 @@ const corsOrigin = process.env.CORS_ORIGIN;
 if (corsOrigin !== undefined && corsOrigin !== '') {
   app.use(
     cors({
-      origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((o) => o.trim()),
-      methods: ['GET', 'HEAD', 'OPTIONS'],
-      allowedHeaders: ['Content-Type'],
-      maxAge: 86400
-    })
+      origin:
+        corsOrigin === '*' ? true : corsOrigin.split(',').map((o) => o.trim()),
+      methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      maxAge: 86400,
+    }),
   );
 }
 
@@ -74,7 +106,7 @@ function parseQueryParams(req) {
     subject: req.query.subject,
     top: req.query.top,
     query: req.query.query,
-    period: req.query.period
+    period: req.query.period,
   };
 }
 
@@ -92,8 +124,12 @@ function serializeReportPayload(payload) {
       group: r.group,
       average: Number.isFinite(r.average) ? r.average : null,
       averageFormatted: formatAvg(r.average),
-      attendancePercent: Number.isFinite(r.attendancePercent) ? r.attendancePercent : null,
-      attendanceFormatted: formatPct(r.attendancePercent) ? `${formatPct(r.attendancePercent)}%` : null
+      attendancePercent: Number.isFinite(r.attendancePercent)
+        ? r.attendancePercent
+        : null,
+      attendanceFormatted: formatPct(r.attendancePercent)
+        ? `${formatPct(r.attendancePercent)}%`
+        : null,
     })),
     stats: {
       bestStudent: payload.stats.bestStudent
@@ -104,19 +140,26 @@ function serializeReportPayload(payload) {
             average: Number.isFinite(payload.stats.bestStudent.average)
               ? payload.stats.bestStudent.average
               : null,
-            averageFormatted: formatAvg(payload.stats.bestStudent.average)
+            averageFormatted: formatAvg(payload.stats.bestStudent.average),
           }
         : null,
-      groupAverage: Number.isFinite(payload.stats.groupAverage) ? payload.stats.groupAverage : null,
-      groupAverageFormatted: formatAvg(payload.stats.groupAverage)
+      groupAverage: Number.isFinite(payload.stats.groupAverage)
+        ? payload.stats.groupAverage
+        : null,
+      groupAverageFormatted: formatAvg(payload.stats.groupAverage),
     },
     scopeAverageCaption: payload.scopeAverageCaption,
     totalCount: payload.totalCount,
-    shownCount: payload.shownCount
+    shownCount: payload.shownCount,
   };
 }
 
 const api = express.Router();
+
+api.use((req, res, next) => {
+  res.setHeader('X-API-Deprecation', 'Use /api/v1/* for new integrations');
+  next();
+});
 
 api.get('/', (_req, res) => {
   const root = BASE_PATH || '';
@@ -131,12 +174,12 @@ api.get('/', (_req, res) => {
       groupRating: `${prefix}/group-rating`,
       report: `${prefix}/report`,
       studentGrades: `${prefix}/student/:id/grades`,
-      export: `${prefix}/export?format=html|txt`
+      export: `${prefix}/export?format=html|txt`,
     },
     env: {
       dataFile: resolvedDataFile,
-      trustProxy: Boolean(app.get('trust proxy'))
-    }
+      trustProxy: Boolean(app.get('trust proxy')),
+    },
   });
 });
 
@@ -144,14 +187,18 @@ api.get('/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'gradelogic',
-    uptimeSec: Math.floor(process.uptime())
+    uptimeSec: Math.floor(process.uptime()),
   });
 });
 
 api.get('/meta', async (_req, res) => {
   try {
     const { students, grades } = await getDataset(DATA_PATH);
-    res.json({
+    publishDomainEvent('api.meta.requested', {
+      studentCount: students.length,
+      gradeCount: grades.length,
+    });
+    return res.json({
       groups: uniqueGroups(students),
       subjects: uniqueSubjects(grades),
       studentCount: students.length,
@@ -159,8 +206,8 @@ api.get('/meta', async (_req, res) => {
       periods: [
         { id: 'all', label: 'Навчальний рік (I + II сем.)' },
         { id: '1', label: '1 семестр' },
-        { id: '2', label: '2 семестр' }
-      ]
+        { id: '2', label: '2 семестр' },
+      ],
     });
   } catch (e) {
     await log('error', `Web /api/meta: ${e && e.message ? e.message : e}`);
@@ -168,7 +215,9 @@ api.get('/meta', async (_req, res) => {
       e && e.code === 'DATA_FILE_MISSING'
         ? 'Файл даних не знайдено. Перевірте GRADES_DATA_PATH або data/grades.json'
         : 'Не вдалося завантажити дані';
-    res.status(500).json({ error: msg, code: e && e.code ? e.code : 'LOAD_ERROR' });
+    return res
+      .status(500)
+      .json({ error: msg, code: e && e.code ? e.code : 'LOAD_ERROR' });
   }
 });
 
@@ -181,7 +230,7 @@ api.get('/group-rating', async (_req, res) => {
       if (!groupMap.has(student.group)) {
         groupMap.set(student.group, {
           name: student.group,
-          students: []
+          students: [],
         });
       }
       groupMap.get(student.group).students.push(student);
@@ -191,17 +240,25 @@ api.get('/group-rating', async (_req, res) => {
     for (const group of groupMap.values()) {
       const studentAverages = group.students.map((s) => {
         const sGrades = grades.filter((g) => g.studentId === s.id);
-        const avg = sGrades.length > 0 ? sGrades.reduce((sum, g) => sum + g.value, 0) / sGrades.length : 0;
+        const avg =
+          sGrades.length > 0
+            ? sGrades.reduce((sum, g) => sum + g.value, 0) / sGrades.length
+            : 0;
         // Calculate attendance for this student
         const att = attendanceAggregate(sGrades);
         return { student: s, average: avg, attendance: att };
       });
 
       const groupAvg =
-        studentAverages.length > 0 ? studentAverages.reduce((sum, s) => sum + s.average, 0) / studentAverages.length : 0;
+        studentAverages.length > 0
+          ? studentAverages.reduce((sum, s) => sum + s.average, 0) /
+            studentAverages.length
+          : 0;
 
       // Calculate group attendance using ALL lessons from ALL students
-      const allGroupGrades = group.students.flatMap((s) => grades.filter((g) => g.studentId === s.id));
+      const allGroupGrades = group.students.flatMap((s) =>
+        grades.filter((g) => g.studentId === s.id),
+      );
       const groupAttendance = attendanceAggregate(allGroupGrades);
 
       const topStudents = studentAverages
@@ -210,26 +267,38 @@ api.get('/group-rating', async (_req, res) => {
         .map((s) => ({
           fullName: s.student.fullName,
           average: s.average,
-          averageFormatted: formatAvg(s.average)
+          averageFormatted: formatAvg(s.average),
         }));
 
       result.push({
         groupName: group.name,
         averageGrade: groupAvg,
         averageGradeFormatted: formatAvg(groupAvg),
-        averageAttendance: Number.isFinite(groupAttendance.percent) ? groupAttendance.percent : 0,
-        averageAttendanceFormatted: formatPct(groupAttendance.percent) ? `${formatPct(groupAttendance.percent)}%` : '0.0%',
+        averageAttendance: Number.isFinite(groupAttendance.percent)
+          ? groupAttendance.percent
+          : 0,
+        averageAttendanceFormatted: formatPct(groupAttendance.percent)
+          ? `${formatPct(groupAttendance.percent)}%`
+          : '0.0%',
         studentCount: group.students.length,
-        topStudents: topStudents,
-        bestStudent: topStudents[0] || null
+        topStudents,
+        bestStudent: topStudents[0] || null,
       });
     }
 
     result.sort((a, b) => b.averageGrade - a.averageGrade);
-    res.json(result);
+    publishDomainEvent('api.groupRating.requested', {
+      groups: result.length,
+    });
+    return res.json(result);
   } catch (e) {
-    await log('error', `Web /api/group-rating: ${e && e.message ? e.message : e}`);
-    res.status(500).json({ error: 'Помилка отримання рейтингу груп', code: 'RATING_ERROR' });
+    await log(
+      'error',
+      `Web /api/group-rating: ${e && e.message ? e.message : e}`,
+    );
+    return res
+      .status(500)
+      .json({ error: 'Помилка отримання рейтингу груп', code: 'RATING_ERROR' });
   }
 });
 
@@ -237,13 +306,22 @@ api.get('/report', async (req, res) => {
   try {
     const { students, grades } = await getDataset(DATA_PATH);
     const payload = computeWebReport(students, grades, parseQueryParams(req));
-    res.json(serializeReportPayload(payload));
+    publishDomainEvent('api.report.requested', {
+      shownCount: payload.shownCount,
+      totalCount: payload.totalCount,
+      period: payload.period,
+    });
+    return res.json(serializeReportPayload(payload));
   } catch (e) {
     if (isSubjectRequiredError(e)) {
-      return res.status(400).json({ error: e.message, code: 'SUBJECT_REQUIRED' });
+      return res
+        .status(400)
+        .json({ error: e.message, code: 'SUBJECT_REQUIRED' });
     }
     await log('error', `Web /api/report: ${e && e.message ? e.message : e}`);
-    res.status(500).json({ error: 'Помилка формування звіту', code: 'REPORT_ERROR' });
+    return res
+      .status(500)
+      .json({ error: 'Помилка формування звіту', code: 'REPORT_ERROR' });
   }
 });
 
@@ -257,17 +335,22 @@ api.get('/student/:id/grades', async (req, res) => {
     const { students, grades } = await getDataset(DATA_PATH);
     const student = students.find((s) => s.id === id);
     if (!student) {
-      return res.status(404).json({ error: 'Студента не знайдено', code: 'NOT_FOUND' });
+      return res
+        .status(404)
+        .json({ error: 'Студента не знайдено', code: 'NOT_FOUND' });
     }
-    const filtered = filterGradesByPeriod(grades, periodNorm).filter((g) => g.studentId === id);
+    const filtered = filterGradesByPeriod(grades, periodNorm).filter(
+      (g) => g.studentId === id,
+    );
     const items = filtered
       .map((g) => ({
+        gradeId: Number.isFinite(g.id) ? g.id : null,
         subject: g.subject,
         semester: g.semester,
         value: g.value,
         attendedLessons: g.attendedLessons,
         totalLessons: g.totalLessons,
-        absences: g.totalLessons - g.attendedLessons
+        absences: g.totalLessons - g.attendedLessons,
       }))
       .sort((a, b) => {
         const cmp = a.subject.localeCompare(b.subject, 'uk');
@@ -277,35 +360,46 @@ api.get('/student/:id/grades', async (req, res) => {
     const sum = filtered.reduce((acc, g) => acc + g.value, 0);
     const avg = filtered.length > 0 ? sum / filtered.length : NaN;
     const agg = attendanceAggregate(filtered);
-    res.json({
-      student: { id: student.id, fullName: student.fullName, group: student.group },
+    return res.json({
+      student: {
+        id: student.id,
+        fullName: student.fullName,
+        group: student.group,
+      },
       period: periodNorm,
       items,
       summary: {
         average: Number.isFinite(avg) ? avg : null,
         averageFormatted: formatAvg(avg),
         attendancePercent: Number.isFinite(agg.percent) ? agg.percent : null,
-        attendanceFormatted: formatPct(agg.percent) ? `${formatPct(agg.percent)}%` : null,
+        attendanceFormatted: formatPct(agg.percent)
+          ? `${formatPct(agg.percent)}%`
+          : null,
         attendedLessons: agg.attended,
-        totalLessons: agg.total
-      }
+        totalLessons: agg.total,
+      },
     });
   } catch (e) {
     await log('error', `Web /api/student: ${e && e.message ? e.message : e}`);
-    res.status(500).json({ error: 'Помилка завантаження оцінок', code: 'LOAD_ERROR' });
+    return res
+      .status(500)
+      .json({ error: 'Помилка завантаження оцінок', code: 'LOAD_ERROR' });
   }
 });
 
 api.get('/export', async (req, res) => {
   try {
-    const format = String(req.query.format || 'html').toLowerCase() === 'txt' ? 'txt' : 'html';
+    const format =
+      String(req.query.format || 'html').toLowerCase() === 'txt'
+        ? 'txt'
+        : 'html';
     const { students, grades } = await getDataset(DATA_PATH);
     const payload = computeWebReport(students, grades, parseQueryParams(req));
     const { title, rows, stats, scopeAverageCaption } = payload;
 
     const safeStats = {
       bestStudent: stats.bestStudent,
-      groupAverage: stats.groupAverage
+      groupAverage: stats.groupAverage,
     };
 
     const body =
@@ -315,23 +409,114 @@ api.get('/export', async (req, res) => {
 
     const ext = format === 'html' ? 'html' : 'txt';
     const name = `gradelogic-report.${ext}`;
-    res.setHeader('Content-Type', format === 'html' ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8');
+    res.setHeader(
+      'Content-Type',
+      format === 'html'
+        ? 'text/html; charset=utf-8'
+        : 'text/plain; charset=utf-8',
+    );
     res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
-    res.send(body);
+    publishDomainEvent('api.export.requested', {
+      format,
+      rows: rows.length,
+      period: payload.period,
+    });
+    return res.send(body);
   } catch (e) {
     if (isSubjectRequiredError(e)) {
-      return res.status(400).json({ error: e.message, code: 'SUBJECT_REQUIRED' });
+      return res
+        .status(400)
+        .json({ error: e.message, code: 'SUBJECT_REQUIRED' });
     }
     await log('error', `Web /api/export: ${e && e.message ? e.message : e}`);
-    res.status(500).json({ error: 'Помилка експорту', code: 'EXPORT_ERROR' });
+    return res
+      .status(500)
+      .json({ error: 'Помилка експорту', code: 'EXPORT_ERROR' });
+  }
+});
+
+api.get('/events/recent', (req, res) => {
+  const limit = Number.parseInt(req.query.limit, 10);
+  const events = listRecentDomainEvents(limit);
+  res.json({
+    count: events.length,
+    items: events,
+  });
+});
+
+api.get('/simulation/stream', async (req, res) => {
+  try {
+    const secondsRaw = Number(req.query.seconds);
+    const seconds =
+      Number.isFinite(secondsRaw) && secondsRaw > 0 ? secondsRaw : 0.2;
+    const mode = String(req.query.mode || 'grade')
+      .trim()
+      .toLowerCase();
+    const limitRaw = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 50;
+
+    const values = [];
+    const iterator =
+      mode === 'weekday' ? weekDayGenerator() : fibonacciGenerator(5, 8);
+    const summary = await consumeWithTimeout(
+      iterator,
+      seconds,
+      (value, index) => {
+        if (index > limit) return;
+        if (mode === 'weekday') {
+          values.push({ step: index, day: value });
+        } else {
+          values.push({
+            step: index,
+            syntheticGrade: (Math.abs(Number(value)) % 41) + 60,
+            sourceValue: value,
+          });
+        }
+      },
+    );
+
+    publishDomainEvent('api.simulation.requested', {
+      mode,
+      seconds,
+      produced: values.length,
+    });
+
+    return res.json({
+      mode,
+      seconds,
+      values,
+      summary,
+    });
+  } catch (error) {
+    await log(
+      'error',
+      `Web /api/simulation/stream: ${error && error.message ? error.message : error}`,
+    );
+    return res.status(500).json({
+      code: 'SIMULATION_ERROR',
+      message: 'Помилка симуляції потоку',
+      details: null,
+    });
   }
 });
 
 api.use((_req, res) => {
-  res.status(404).json({ error: 'Невідомий шлях API', code: 'NOT_FOUND' });
+  res.status(404).json({
+    code: 'NOT_FOUND',
+    message: 'Невідомий шлях API',
+    details: null,
+  });
 });
 
 const apiMount = BASE_PATH ? `${BASE_PATH}/api` : '/api';
+const v1Mount = BASE_PATH ? `${BASE_PATH}/api/v1` : '/api/v1';
+app.use(
+  v1Mount,
+  makeApiV1Router({
+    dataPath: DATA_PATH,
+    getDataset,
+  }),
+);
 app.use(apiMount, api);
 
 /** Статика + fallback на index.html (SPA) у межах BASE_PATH */
@@ -339,14 +524,14 @@ const publicApp = express.Router();
 publicApp.use(
   express.static(PUBLIC_DIR, {
     index: 'index.html',
-    maxAge: process.env.NODE_ENV === 'production' ? 3600000 : 0
-  })
+    maxAge: process.env.NODE_ENV === 'production' ? 3600000 : 0,
+  }),
 );
 publicApp.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return next();
   }
-  res.sendFile(INDEX_HTML, (err) => {
+  return res.sendFile(INDEX_HTML, (err) => {
     if (err) next(err);
   });
 });
@@ -357,11 +542,16 @@ if (BASE_PATH) {
   app.use(publicApp);
 }
 
-app.use((err, _req, res, _next) => {
+app.use((err, _req, res, next) => {
   log('error', `Web unhandled: ${err && err.message ? err.message : err}`);
-  if (!res.headersSent) {
-    res.status(500).send('Internal Server Error');
+  if (res.headersSent) {
+    return next(err);
   }
+  return res.status(500).json({
+    code: 'INTERNAL_ERROR',
+    message: 'Internal Server Error',
+    details: null,
+  });
 });
 
 const PORT = Number.parseInt(process.env.PORT, 10) || 3000;
@@ -369,25 +559,51 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 async function start() {
   try {
-    await getDataset(DATA_PATH);
+    await ensureDefaultUsers();
   } catch (e) {
-    console.error('Не вдалося прочитати базу оцінок.');
-    console.error(`Шлях: ${resolvedDataFile}`);
-    console.error('Підказка: задайте GRADES_DATA_PATH або покладіть файл у data/grades.json');
+    console.error('Не вдалося підготувати базу користувачів (Prisma).');
+    console.error(
+      'Підказка: npx prisma generate && npx prisma db push (або npm run db:migrate:json для імпорту з JSON)',
+    );
+    if (e && e.message) console.error(e.message);
     process.exitCode = 1;
     return;
   }
 
-  app.listen(PORT, HOST, () => {
+  try {
+    await getDataset(DATA_PATH);
+  } catch (e) {
+    console.error('Не вдалося завантажити дані журналу для веб-сервера.');
+    if (isSqliteMode()) {
+      console.error('Режим: DATA_STORAGE=sqlite');
+      console.error(
+        'Підказка: перевірте DATABASE_URL, виконайте prisma generate та prisma db push або npm run db:migrate:json',
+      );
+    } else {
+      console.error(`Шлях до JSON: ${resolvedDataFile}`);
+      console.error(
+        'Підказка: задайте GRADES_DATA_PATH або покладіть файл у data/grades.json',
+      );
+    }
+    if (e && e.message) console.error(e.message);
+    process.exitCode = 1;
+    return;
+  }
+
+  const server = app.listen(PORT, HOST, () => {
     const hostShown = HOST === '0.0.0.0' ? 'localhost' : HOST;
     const suffix = BASE_PATH ? `${BASE_PATH}/` : '/';
     console.log(`GradeLogic веб: http://${hostShown}:${PORT}${suffix}`);
     console.log(`API: http://${hostShown}:${PORT}${apiMount}`);
+    console.log(`API v1: http://${hostShown}:${PORT}${v1Mount}`);
     if (BASE_PATH) {
-      console.log('Якщо фронт не грузиться — у index.html задайте meta gradelogic-public-base');
+      console.log(
+        'Якщо фронт не грузиться — у index.html задайте meta gradelogic-public-base',
+      );
     }
     log('success', `Web server listening on ${HOST}:${PORT} api=${apiMount}`);
   });
+  initWebSocket(server, BASE_PATH ? `${BASE_PATH}/ws` : '/ws');
 }
 
 start();

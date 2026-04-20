@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  role         String
+  createdAt    DateTime @default(now())
+}
+
+model Student {
+  id        Int      @id
+  fullName  String
+  groupName String
+  grades    Grade[]
+}
+
+model Grade {
+  id              Int      @id @default(autoincrement())
+  studentId       Int
+  subject         String
+  value           Float
+  semester        Int
+  attendedLessons Int
+  totalLessons    Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model AcademicPeriod {
+  id         Int      @id @default(autoincrement())
+  code       String   @unique
+  label      String
+  isActive   Boolean  @default(false)
+  startDate  DateTime
+  endDate    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int?
+  action    String
+  entity    String
+  entityId  String
+  payload   String
+  createdAt DateTime @default(now())
+}

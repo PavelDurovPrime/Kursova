@@ -19,6 +19,5 @@ async function log(level, message) {
 }
 
 module.exports = {
-  log
+  log,
 };
-

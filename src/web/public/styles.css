@@ -1,3 +1,73 @@
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast-item {
+  background: #0f172a;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
+  font-size: 13px;
+}
+
+.quick-search-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 1500;
+}
+
+.quick-search-modal {
+  position: fixed;
+  top: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, 92vw);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 15px 40px rgba(15, 23, 42, 0.2);
+  z-index: 1600;
+  padding: 12px;
+}
+
+.quick-search-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.quick-search-modal input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+}
+
+.quick-search-results {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.quick-search-results li {
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.quick-search-results li:hover {
+  background: #f1f5f9;
+}
 :root {
   /* Elegant Light Palette: White & Gray */
   --bg-page: #f1f5f9;

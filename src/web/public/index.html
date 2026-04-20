@@ -217,6 +217,18 @@
     </div>
   </div>
 
+  <div class="quick-search-backdrop" id="quickSearchBackdrop" hidden></div>
+  <div class="quick-search-modal" id="quickSearchModal" hidden>
+    <div class="quick-search-head">
+      <strong>Quick Search (Ctrl/Cmd + K)</strong>
+      <button type="button" class="btn-close" id="quickSearchClose">×</button>
+    </div>
+    <input id="quickSearchInput" type="search" placeholder="Почніть вводити ПІБ..." />
+    <ul id="quickSearchResults" class="quick-search-results"></ul>
+  </div>
+
+  <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+
   <script src="app.js"></script>
 </body>
 </html>

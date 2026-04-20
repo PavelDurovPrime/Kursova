@@ -3,7 +3,9 @@
  * @param {'all'|'1'|'2'} period
  */
 function normalizePeriod(period) {
-  const s = String(period ?? 'all').trim().toLowerCase();
+  const s = String(period ?? 'all')
+    .trim()
+    .toLowerCase();
   if (s === '1' || s === 'sem1' || s === 'semester1' || s === 'i') return '1';
   if (s === '2' || s === 'sem2' || s === 'semester2' || s === 'ii') return '2';
   return 'all';
@@ -52,7 +54,7 @@ function buildReportRowBase(student, gradeCount, average, att) {
     ects: valueToECTS(average),
     attendancePercent: att.percent,
     attendedLessons: att.attended,
-    totalLessons: att.total
+    totalLessons: att.total,
   };
 }
 
@@ -80,10 +82,14 @@ const strategies = {
   },
   'by-count-desc': (a, b) => b.gradeCount - a.gradeCount,
   'by-attendance-desc': (a, b) => {
-    const aVal = Number.isFinite(a.attendancePercent) ? a.attendancePercent : -Infinity;
-    const bVal = Number.isFinite(b.attendancePercent) ? b.attendancePercent : -Infinity;
+    const aVal = Number.isFinite(a.attendancePercent)
+      ? a.attendancePercent
+      : -Infinity;
+    const bVal = Number.isFinite(b.attendancePercent)
+      ? b.attendancePercent
+      : -Infinity;
     return bVal - aVal;
-  }
+  },
 };
 
 function sortStudents(students, strategyName) {
@@ -101,7 +107,9 @@ function buildStudentAverage(students, grades) {
 }
 
 function buildStudentSubjectAverage(students, grades, subjectName) {
-  const normalizedSubject = String(subjectName || '').trim().toLowerCase();
+  const normalizedSubject = String(subjectName || '')
+    .trim()
+    .toLowerCase();
   if (!normalizedSubject) {
     return students.map((s) => {
       const empty = { attended: 0, total: 0, percent: NaN };
@@ -111,7 +119,11 @@ function buildStudentSubjectAverage(students, grades, subjectName) {
 
   return students.map((s) => {
     const list = grades.filter(
-      (g) => g.studentId === s.id && String(g.subject || '').trim().toLowerCase() === normalizedSubject
+      (g) =>
+        g.studentId === s.id &&
+        String(g.subject || '')
+          .trim()
+          .toLowerCase() === normalizedSubject,
     );
     const count = list.length;
     const avg = mean(list.map((g) => g.value));
@@ -130,5 +142,5 @@ module.exports = {
   sortStudents,
   findStudentsByName,
   attendanceAggregate,
-  strategies
+  strategies,
 };

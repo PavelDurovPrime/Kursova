@@ -1,5 +1,12 @@
 class Grade {
-  constructor(studentId, subject, value, semester, attendedLessons, totalLessons) {
+  constructor(
+    studentId,
+    subject,
+    value,
+    semester,
+    attendedLessons,
+    totalLessons,
+  ) {
     this.studentId = studentId;
     this.subject = subject;
     this.value = value;

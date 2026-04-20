@@ -4,16 +4,21 @@ const {
   sortStudents,
   findStudentsByName,
   filterGradesByPeriod,
-  normalizePeriod
+  normalizePeriod,
 } = require('../services/gradeService');
-const { buildReportStats, applyGroupFilter, buildReportView, periodCaption } = require('../reportView');
+const {
+  buildReportStats,
+  applyGroupFilter,
+  buildReportView,
+  periodCaption,
+} = require('../reportView');
 
 const ALLOWED_SORT = new Set([
   'by-name',
   'by-average-desc',
   'by-count-desc',
   'by-subject-average-desc',
-  'by-attendance-desc'
+  'by-attendance-desc',
 ]);
 
 function normalizeSort(value) {
@@ -29,16 +34,17 @@ class SubjectRequiredError extends Error {
   }
 }
 
-function computeWebReport(students, grades, { group, sort, subject, top, query, period }) {
+function computeWebReport(
+  students,
+  grades,
+  { group, sort, subject, top, query, period },
+) {
   const periodNorm = normalizePeriod(period);
   const sortStrategy = normalizeSort(sort);
   const periodFiltered = filterGradesByPeriod(grades, periodNorm);
   const groupTrim = group ? String(group).trim() : '';
-  const { scopedStudents, scopedGrades, scopeLabel, scopeAverageCaption } = applyGroupFilter(
-    students,
-    periodFiltered,
-    groupTrim || null
-  );
+  const { scopedStudents, scopedGrades, scopeLabel, scopeAverageCaption } =
+    applyGroupFilter(students, periodFiltered, groupTrim || null);
 
   const q = query ? String(query).trim() : '';
   let rows;
@@ -47,11 +53,17 @@ function computeWebReport(students, grades, { group, sort, subject, top, query, 
   const periodHuman = periodCaption(periodNorm);
 
   if (q) {
-    const matches = findStudentsByName(buildStudentReport(scopedStudents, scopedGrades), q);
+    const matches = findStudentsByName(
+      buildStudentReport(scopedStudents, scopedGrades),
+      q,
+    );
     if (sortStrategy === 'by-subject-average-desc') {
       const subj = String(subject || '').trim();
       if (!subj) throw new SubjectRequiredError();
-      rows = sortStudents(buildStudentSubjectAverage(matches, scopedGrades, subj), sortStrategy);
+      rows = sortStudents(
+        buildStudentSubjectAverage(matches, scopedGrades, subj),
+        sortStrategy,
+      );
     } else {
       rows = sortStudents(matches, sortStrategy);
     }
@@ -65,7 +77,7 @@ function computeWebReport(students, grades, { group, sort, subject, top, query, 
       sortStrategy,
       subject: subj,
       scopeLabel,
-      period: periodNorm
+      period: periodNorm,
     });
     rows = view.rows;
     title = view.title;
@@ -75,14 +87,16 @@ function computeWebReport(students, grades, { group, sort, subject, top, query, 
       grades: scopedGrades,
       sortStrategy,
       scopeLabel,
-      period: periodNorm
+      period: periodNorm,
     });
     rows = view.rows;
     title = view.title;
   }
 
-  const topN = top !== undefined && top !== '' ? Number.parseInt(String(top), 10) : null;
-  const limited = Number.isFinite(topN) && topN > 0 ? rows.slice(0, topN) : rows;
+  const topN =
+    top !== undefined && top !== '' ? Number.parseInt(String(top), 10) : null;
+  const limited =
+    Number.isFinite(topN) && topN > 0 ? rows.slice(0, topN) : rows;
   const stats = buildReportStats(limited);
 
   return {
@@ -92,20 +106,20 @@ function computeWebReport(students, grades, { group, sort, subject, top, query, 
     scopeAverageCaption,
     totalCount: rows.length,
     shownCount: limited.length,
-    period: periodNorm
+    period: periodNorm,
   };
 }
 
 function uniqueSubjects(grades) {
-  return [...new Set((grades || []).map((g) => g.subject).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, 'uk')
-  );
+  return [
+    ...new Set((grades || []).map((g) => g.subject).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b, 'uk'));
 }
 
 function uniqueGroups(students) {
-  return [...new Set((students || []).map((s) => s.group).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, 'uk')
-  );
+  return [
+    ...new Set((students || []).map((s) => s.group).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b, 'uk'));
 }
 
 module.exports = {
@@ -114,5 +128,5 @@ module.exports = {
   normalizePeriod,
   uniqueSubjects,
   uniqueGroups,
-  SubjectRequiredError
+  SubjectRequiredError,
 };

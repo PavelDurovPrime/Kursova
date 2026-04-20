@@ -39,17 +39,26 @@
   const skeletonLoading = $('#skeletonLoading');
   const chartContainer = $('#chartContainer');
   const trendChartCanvas = $('#trendChart');
+  const toastStack = $('#toastStack');
+  const quickSearchModal = $('#quickSearchModal');
+  const quickSearchBackdrop = $('#quickSearchBackdrop');
+  const quickSearchInput = $('#quickSearchInput');
+  const quickSearchResults = $('#quickSearchResults');
+  const quickSearchClose = $('#quickSearchClose');
 
   let selectedRowId = null;
   let currentStudentGrades = [];
   let trendChartInstance = null;
   let previousRankings = {};
   let groupAverages = {};
+  let lastRows = [];
 
   function fetchWithTimeout(url, options = {}) {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-    return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(id));
+    return fetch(url, { ...options, signal: ctrl.signal }).finally(() =>
+      clearTimeout(id),
+    );
   }
 
   function publicBasePath() {
@@ -63,6 +72,106 @@
     const base = publicBasePath();
     const p = path.startsWith('/') ? path : `/${path}`;
     return base ? `${base}/api${p}` : `/api${p}`;
+  }
+
+  function connectRealtime() {
+    const base = publicBasePath();
+    const wsPath = base ? `${base}/ws` : '/ws';
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${protocol}://${window.location.host}${wsPath}`;
+    const socket = new WebSocket(wsUrl);
+    socket.addEventListener('message', (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'grade.updated') {
+          showToast('Рейтинг оновлено в реальному часі');
+          loadReport();
+        }
+      } catch {
+        /* ignore non-JSON WebSocket payloads */
+      }
+    });
+  }
+
+  function v1Url(path) {
+    const base = publicBasePath();
+    const p = path.startsWith('/') ? path : `/${path}`;
+    return base ? `${base}/api/v1${p}` : `/api/v1${p}`;
+  }
+
+  function showToast(message) {
+    if (!toastStack) return;
+    const item = document.createElement('div');
+    item.className = 'toast-item';
+    item.textContent = message;
+    toastStack.appendChild(item);
+    setTimeout(() => item.remove(), 3200);
+  }
+
+  function applyStateToForm() {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    periodSelect.value = params.get('period') || 'all';
+    groupSelect.value = params.get('group') || '';
+    sortSelect.value = params.get('sort') || 'by-average-desc';
+    queryInput.value = params.get('query') || '';
+    const subject = params.get('subject');
+    if (
+      subject &&
+      Array.from(subjectSelect.options).some(
+        (option) => option.value === subject,
+      )
+    ) {
+      subjectSelect.value = subject;
+    }
+  }
+
+  function updateUrlState(extra = {}) {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    params.set('period', periodSelect.value);
+    if (groupSelect.value) params.set('group', groupSelect.value);
+    else params.delete('group');
+    params.set('sort', sortSelect.value);
+    if (sortSelect.value === 'by-subject-average-desc' && subjectSelect.value) {
+      params.set('subject', subjectSelect.value);
+    } else {
+      params.delete('subject');
+    }
+    const query = queryInput.value.trim();
+    if (query) params.set('query', query);
+    else params.delete('query');
+
+    if (extra.studentId) params.set('student', String(extra.studentId));
+    if (extra.removeStudent) params.delete('student');
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  function openQuickSearch() {
+    quickSearchBackdrop.hidden = false;
+    quickSearchModal.hidden = false;
+    quickSearchInput.value = '';
+    renderQuickSearchResults(lastRows);
+    quickSearchInput.focus();
+  }
+
+  function closeQuickSearch() {
+    quickSearchBackdrop.hidden = true;
+    quickSearchModal.hidden = true;
+  }
+
+  function renderQuickSearchResults(rows) {
+    quickSearchResults.innerHTML = '';
+    const limited = rows.slice(0, 15);
+    for (const row of limited) {
+      const li = document.createElement('li');
+      li.textContent = `${row.fullName} (${row.group})`;
+      li.addEventListener('click', () => {
+        closeQuickSearch();
+        openStudentModal(row.id, 0);
+      });
+      quickSearchResults.appendChild(li);
+    }
   }
 
   function escapeHtml(value) {
@@ -139,7 +248,7 @@
   function getRankChangeIndicator(studentId, currentRank) {
     const previousRank = previousRankings[studentId];
     if (previousRank === undefined) return '';
-    
+
     const change = previousRank - currentRank;
     if (change > 0) {
       return `<span class="rank-indicator rank-up" title="+${change} ↑">↑</span>`;
@@ -165,7 +274,10 @@
     const span = document.createElement('span');
     span.className = 'att-badge';
     const pct = formatted ?? '—';
-    const detail = Number.isFinite(attended) && Number.isFinite(total) ? ` (${attended}/${total})` : '';
+    const detail =
+      Number.isFinite(attended) && Number.isFinite(total)
+        ? ` (${attended}/${total})`
+        : '';
     span.textContent = `${pct}${detail}`;
     if (Number.isFinite(raw) && raw < 75) span.classList.add('att-weak');
     return span;
@@ -179,12 +291,12 @@
         label: 'Найкращий у звіті',
         value: stats.bestStudent
           ? `${stats.bestStudent.fullName} — ${stats.bestStudent.averageFormatted ?? '—'}`
-          : '—'
+          : '—',
       },
       {
         label: data.scopeAverageCaption || 'Середній по вибірці',
-        value: stats.groupAverageFormatted ?? '—'
-      }
+        value: stats.groupAverageFormatted ?? '—',
+      },
     ];
 
     for (const card of cards) {
@@ -199,11 +311,12 @@
 
   function hasFireStreak(grades) {
     if (!grades || !Array.isArray(grades)) return false;
-    const highGrades = grades.filter(g => (parseFloat(g.value) || 0) >= 95);
+    const highGrades = grades.filter((g) => (parseFloat(g.value) || 0) >= 95);
     return highGrades.length >= 5;
   }
 
-  function renderTable(rows, allRows = []) {
+  function renderTable(rows) {
+    lastRows = rows.slice();
     tableBody.innerHTML = '';
     if (!rows.length) {
       table.hidden = true;
@@ -217,17 +330,20 @@
 
     const currentRankings = {};
     const groupRankings = {};
-    rows.forEach(row => {
+    rows.forEach((row) => {
       if (!groupRankings[row.group]) groupRankings[row.group] = [];
       groupRankings[row.group].push(row);
     });
-    Object.keys(groupRankings).forEach(group => {
-      groupRankings[group].sort((a, b) => (parseFloat(b.average) || 0) - (parseFloat(a.average) || 0));
+    Object.keys(groupRankings).forEach((group) => {
+      groupRankings[group].sort(
+        (a, b) => (parseFloat(b.average) || 0) - (parseFloat(a.average) || 0),
+      );
     });
 
     rows.forEach((row, index) => {
       currentRankings[row.id] = index + 1;
-      const groupRank = groupRankings[row.group].findIndex(r => r.id === row.id) + 1;
+      const groupRank =
+        groupRankings[row.group].findIndex((r) => r.id === row.id) + 1;
       const tr = document.createElement('tr');
       tr.tabIndex = 0;
       tr.dataset.id = String(row.id);
@@ -235,7 +351,9 @@
       if (selectedRowId === row.id) tr.setAttribute('aria-selected', 'true');
       const tierBadge = getTierBadge(row.average);
       const rankIndicator = getRankChangeIndicator(row.id, index + 1);
-      const fireStreak = hasFireStreak(row.grades) ? '<span class="fire-streak" title="5+ оцінок 95+">🔥<span class="fire-count">5</span></span>' : '';
+      const fireStreak = hasFireStreak(row.grades)
+        ? '<span class="fire-streak" title="5+ оцінок 95+">🔥<span class="fire-count">5</span></span>'
+        : '';
       tr.innerHTML = `
         <td><span class="avatar">${getInitials(row.fullName)}</span></td>
         <td>
@@ -251,7 +369,14 @@
 
       const cells = tr.querySelectorAll('td');
       cells[3].appendChild(formatAvgCell(row.averageFormatted, row.average));
-      cells[4].appendChild(formatAttCell(row.attendanceFormatted, row.attendancePercent, row.attendedLessons, row.totalLessons));
+      cells[4].appendChild(
+        formatAttCell(
+          row.attendanceFormatted,
+          row.attendancePercent,
+          row.attendedLessons,
+          row.totalLessons,
+        ),
+      );
 
       tr.addEventListener('click', () => openStudentModal(row.id, groupRank));
       tr.addEventListener('keydown', (event) => {
@@ -273,7 +398,9 @@
       res = await fetchWithTimeout(apiUrl('/meta'));
     } catch (e) {
       if (e.name === 'AbortError') {
-        throw new Error('Час очікування сервера вичерпано. Перевірте, чи запущено API.');
+        throw new Error(
+          'Час очікування сервера вичерпано. Перевірте, чи запущено API.',
+        );
       }
       throw e;
     }
@@ -321,16 +448,25 @@
     emptyState.hidden = true;
 
     try {
-      const res = await fetchWithTimeout(`${apiUrl('/report')}?${buildQuery()}`);
+      const res = await fetchWithTimeout(
+        `${apiUrl('/report')}?${buildQuery()}`,
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Помилка ${res.status}`);
       reportTitle.textContent = data.title || 'Звіт';
-      updateReportCount((data.rows && data.rows.length) || data.shownCount || 0);
+      updateReportCount(
+        (data.rows && data.rows.length) || data.shownCount || 0,
+      );
       renderStats(data);
       renderTable(data.rows || []);
+      showToast('Звіт оновлено');
       updateExportLinks();
+      updateUrlState();
     } catch (e) {
-      errorBanner.textContent = e.name === 'AbortError' ? 'Час очікування сервера вичерпано.' : e.message || 'Невідома помилка';
+      errorBanner.textContent =
+        e.name === 'AbortError'
+          ? 'Час очікування сервера вичерпано.'
+          : e.message || 'Невідома помилка';
       errorBanner.hidden = false;
       summaryPanel.hidden = true;
       reportCountLine.hidden = true;
@@ -342,30 +478,42 @@
   function buildLessonRows(gradeInfo) {
     const rows = [];
     const totalLessons = Number(gradeInfo.totalLessons) || 0;
-    const attendedLessons = Math.max(0, Math.min(Number(gradeInfo.attendedLessons) || 0, totalLessons));
+    const attendedLessons = Math.max(
+      0,
+      Math.min(Number(gradeInfo.attendedLessons) || 0, totalLessons),
+    );
     const absences = Math.max(0, totalLessons - attendedLessons);
-    const attendedScore = attendedLessons > 0 ? Math.round(Number(gradeInfo.value) || 0) : null;
+    const attendedScore =
+      attendedLessons > 0 ? Math.round(Number(gradeInfo.value) || 0) : null;
     const startMonth = gradeInfo.semester === 1 ? 8 : 1;
     const startDate = new Date(2025, startMonth, 2);
 
-    const missInterval = absences > 0 ? Math.floor(totalLessons / absences) : totalLessons + 1;
+    const missInterval =
+      absences > 0 ? Math.floor(totalLessons / absences) : totalLessons + 1;
 
     for (let index = 0; index < totalLessons; index += 1) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + index * 7);
-      
-      const isAbsent = absences > 0 && (index % missInterval === 0) && (rows.filter(r => !r.present).length < absences);
-      
+
+      const isAbsent =
+        absences > 0 &&
+        index % missInterval === 0 &&
+        rows.filter((r) => !r.present).length < absences;
+
       rows.push({
-        date: date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        date: date.toLocaleDateString('uk-UA', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }),
         score: isAbsent ? '—' : attendedScore,
         presence: isAbsent ? 'Відсутній' : 'Присутній',
         mark: isAbsent ? 'Н' : attendedScore,
-        present: !isAbsent
+        present: !isAbsent,
       });
     }
 
-    let currentAbsences = rows.filter(r => !r.present).length;
+    let currentAbsences = rows.filter((r) => !r.present).length;
     if (currentAbsences < absences) {
       for (let i = rows.length - 1; i >= 0 && currentAbsences < absences; i--) {
         if (rows[i].present) {
@@ -392,15 +540,15 @@
     if (oldHeatmap) oldHeatmap.remove();
 
     const lessonRows = buildLessonRows(gradeInfo);
-    const missedDates = lessonRows.filter(l => !l.present).map(l => l.date);
-    
+    const missedDates = lessonRows.filter((l) => !l.present).map((l) => l.date);
+
     const heatmapContainer = document.createElement('div');
     heatmapContainer.className = 'attendance-heatmap';
-    
-    const presentCount = lessonRows.filter(l => l.present).length;
-    const absentCount = lessonRows.filter(l => !l.present).length;
+
+    const presentCount = lessonRows.filter((l) => l.present).length;
+    const absentCount = lessonRows.filter((l) => !l.present).length;
     const score = gradeInfo.value || 0;
-    
+
     const statsHeader = document.createElement('div');
     statsHeader.className = 'heatmap-stats';
     statsHeader.innerHTML = `
@@ -418,12 +566,12 @@
       </div>
     `;
     heatmapContainer.appendChild(statsHeader);
-    
+
     const monthLabels = document.createElement('div');
     monthLabels.className = 'heatmap-months';
-    
+
     const monthGroups = {};
-    lessonRows.forEach(lesson => {
+    lessonRows.forEach((lesson) => {
       const date = new Date(lesson.date.split('.').reverse().join('-'));
       const monthKey = date.toLocaleDateString('uk-UA', { month: 'short' });
       if (!monthGroups[monthKey]) {
@@ -431,24 +579,22 @@
       }
       monthGroups[monthKey].push(lesson);
     });
-    
-    Object.keys(monthGroups).forEach(month => {
+
+    Object.keys(monthGroups).forEach((month) => {
       const monthLabel = document.createElement('span');
       monthLabel.className = 'heatmap-month-label';
       monthLabel.textContent = month;
       monthLabels.appendChild(monthLabel);
     });
     heatmapContainer.appendChild(monthLabels);
-    
+
     const gridContainer = document.createElement('div');
     gridContainer.className = 'heatmap-grid';
-    
-    const dayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
-    
-    lessonRows.forEach((lesson, index) => {
+
+    lessonRows.forEach((lesson) => {
       const cell = document.createElement('div');
       cell.className = 'heatmap-cell';
-      
+
       if (!lesson.present) {
         cell.classList.add('heatmap-cell-absent');
         cell.title = `${lesson.date}: Відсутній (Н)`;
@@ -457,15 +603,15 @@
         cell.classList.add(`heatmap-cell-level-${intensity}`);
         cell.title = `${lesson.date}: Присутній (${lesson.score} балів)`;
       }
-      
+
       const date = new Date(lesson.date.split('.').reverse().join('-'));
       cell.dataset.weekday = date.getDay() || 7;
-      
+
       gridContainer.appendChild(cell);
     });
-    
+
     heatmapContainer.appendChild(gridContainer);
-    
+
     const legend = document.createElement('div');
     legend.className = 'heatmap-legend';
     legend.innerHTML = `
@@ -481,13 +627,19 @@
     `;
     heatmapContainer.appendChild(legend);
 
-    subjectDetails.insertBefore(heatmapContainer, subjectDetails.querySelector('.lessons-table'));
+    subjectDetails.insertBefore(
+      heatmapContainer,
+      subjectDetails.querySelector('.lessons-table'),
+    );
 
     if (missedDates.length > 0) {
       const missedInfo = document.createElement('div');
       missedInfo.className = 'missed-info-banner';
       missedInfo.innerHTML = `<strong>Пропущені заняття:</strong> ${missedDates.join(', ')}`;
-      subjectDetails.insertBefore(missedInfo, subjectDetails.querySelector('.lessons-table'));
+      subjectDetails.insertBefore(
+        missedInfo,
+        subjectDetails.querySelector('.lessons-table'),
+      );
     }
 
     subjectDetails.hidden = false;
@@ -496,7 +648,7 @@
   function getComparisonIndicator(grade, groupName) {
     const groupAvg = groupAverages[groupName];
     if (!Number.isFinite(groupAvg) || !Number.isFinite(grade)) return '';
-    
+
     const diff = (grade - groupAvg).toFixed(1);
     if (diff > 0) {
       return `<span class="comparison-indicator comparison-above">+${diff} вище групи</span>`;
@@ -519,17 +671,20 @@
       const tr = document.createElement('tr');
       tr.className = 'clickable';
       const attendance = `${grade.attendedLessons} з ${grade.totalLessons}`;
-      const misses = Number.isFinite(grade.absences) && grade.absences > 0 ? ` (пропусків: ${grade.absences})` : '';
+      const misses =
+        Number.isFinite(grade.absences) && grade.absences > 0
+          ? ` (пропусків: ${grade.absences})`
+          : '';
       const comparison = getComparisonIndicator(grade.value, studentGroup);
       const progressClass = getProgressClass(grade.value);
       const progressPercent = Math.min(100, Math.max(0, grade.value || 0));
-      
+
       tr.innerHTML = `
         <td>${escapeHtml(grade.subject)} ${comparison}</td>
         <td class="num">${grade.semester ?? '—'}</td>
         <td class="num">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span>${grade.value}</span>
+            <span class="grade-value" data-grade-id="${grade.gradeId ?? ''}">${grade.value}</span>
             <div class="progress-bar" style="width: 60px;">
               <div class="progress-fill ${progressClass}" style="width: ${progressPercent}%"></div>
             </div>
@@ -537,6 +692,44 @@
         </td>
         <td class="modal-att">${escapeHtml(attendance)}${escapeHtml(misses)}</td>
       `;
+      const valueEl = tr.querySelector('.grade-value');
+      if (grade.gradeId) {
+        const reopenStudentId = selectedRowId;
+        valueEl.title = 'Double click to edit';
+        valueEl.addEventListener('dblclick', async () => {
+          const input = window.prompt(
+            'Нове значення (0..100):',
+            String(grade.value),
+          );
+          if (input === null) return;
+          const parsed = Number(input);
+          if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+            showToast('Некоректне значення');
+            return;
+          }
+          const token = window.localStorage.getItem('gl_token');
+          if (!token) {
+            showToast('Потрібен JWT токен у localStorage: gl_token');
+            return;
+          }
+          const response = await fetch(v1Url(`/grades/${grade.gradeId}`), {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ value: parsed }),
+          });
+          if (!response.ok) {
+            showToast('Не вдалося оновити оцінку');
+            return;
+          }
+          grade.value = parsed;
+          showToast('Оцінку оновлено');
+          await loadReport();
+          await openStudentModal(reopenStudentId, 0);
+        });
+      }
       tr.addEventListener('click', () => showSubjectDetails(grade));
       modalGradesBody.appendChild(tr);
     }
@@ -544,7 +737,7 @@
 
   function renderTrendChart(grades) {
     if (!trendChartCanvas || !window.Chart) return;
-    
+
     // Destroy previous chart
     if (trendChartInstance) {
       trendChartInstance.destroy();
@@ -556,7 +749,9 @@
       return;
     }
 
-    const validGrades = grades.filter(g => g && g.subject && g.value != null);
+    const validGrades = grades.filter(
+      (g) => g && g.subject && g.value !== undefined && g.value !== null,
+    );
     if (validGrades.length === 0) {
       chartContainer.hidden = true;
       return;
@@ -565,7 +760,7 @@
     chartContainer.hidden = false;
 
     const subjectScores = {};
-    validGrades.forEach(g => {
+    validGrades.forEach((g) => {
       if (!subjectScores[g.subject]) {
         subjectScores[g.subject] = { sum: 0, count: 0 };
       }
@@ -576,8 +771,10 @@
       }
     });
 
-    const labels = Object.keys(subjectScores).filter(s => subjectScores[s].count > 0);
-    const data = labels.map(subject => {
+    const labels = Object.keys(subjectScores).filter(
+      (s) => subjectScores[s].count > 0,
+    );
+    const data = labels.map((subject) => {
       const s = subjectScores[subject];
       return Math.round(s.sum / s.count);
     });
@@ -587,41 +784,44 @@
       return;
     }
 
-    const sortedData = labels.map((label, i) => ({ label, score: data[i] }))
+    const sortedData = labels
+      .map((label, i) => ({ label, score: data[i] }))
       .sort((a, b) => b.score - a.score);
-    const sortedLabels = sortedData.map(d => d.label);
-    const sortedScores = sortedData.map(d => d.score);
-    
+    const sortedLabels = sortedData.map((d) => d.label);
+    const sortedScores = sortedData.map((d) => d.score);
+
     setTimeout(() => {
       const container = chartContainer;
       const canvas = trendChartCanvas;
-      
+
       canvas.width = container.clientWidth || 400;
       canvas.height = 250;
       canvas.style.width = '100%';
       canvas.style.height = '250px';
-      
+
       const ctx = canvas.getContext('2d');
-      
-      trendChartInstance = new Chart(ctx, {
+
+      trendChartInstance = new window.Chart(ctx, {
         type: 'bar',
         data: {
           labels: sortedLabels,
-          datasets: [{
-            label: 'Бал',
-            data: sortedScores,
-            backgroundColor: sortedScores.map((score) => {
-              const g = ctx.createLinearGradient(0, 0, 300, 0);
-              const alpha = 0.5 + (score / 200);
-              g.addColorStop(0, `rgba(15, 23, 42, ${alpha})`);
-              g.addColorStop(1, `rgba(15, 23, 42, ${alpha * 0.4})`);
-              return g;
-            }),
-            borderColor: '#0f172a',
-            borderWidth: 1,
-            borderRadius: 6,
-            borderSkipped: false,
-          }]
+          datasets: [
+            {
+              label: 'Бал',
+              data: sortedScores,
+              backgroundColor: sortedScores.map((score) => {
+                const g = ctx.createLinearGradient(0, 0, 300, 0);
+                const alpha = 0.5 + score / 200;
+                g.addColorStop(0, `rgba(15, 23, 42, ${alpha})`);
+                g.addColorStop(1, `rgba(15, 23, 42, ${alpha * 0.4})`);
+                return g;
+              }),
+              borderColor: '#0f172a',
+              borderWidth: 1,
+              borderRadius: 6,
+              borderSkipped: false,
+            },
+          ],
         },
         options: {
           indexAxis: 'y',
@@ -629,10 +829,10 @@
           maintainAspectRatio: false,
           animation: {
             duration: 600,
-            easing: 'easeOutQuart'
+            easing: 'easeOutQuart',
           },
           layout: {
-            padding: { left: 10, right: 20, top: 10, bottom: 10 }
+            padding: { left: 10, right: 20, top: 10, bottom: 10 },
           },
           plugins: {
             legend: { display: false },
@@ -646,26 +846,26 @@
               displayColors: false,
               callbacks: {
                 title: (ctx) => ctx[0]?.label || '',
-                label: (ctx) => `Бал: ${ctx.parsed?.x || 0}`
-              }
-            }
+                label: (ctx) => `Бал: ${ctx.parsed?.x || 0}`,
+              },
+            },
           },
           scales: {
             x: {
               beginAtZero: true,
               max: 100,
               grid: { color: 'rgba(0, 0, 0, 0.05)' },
-              ticks: { color: '#64748b', font: { size: 10 } }
+              ticks: { color: '#64748b', font: { size: 10 } },
             },
             y: {
               grid: { display: false },
-              ticks: { 
-                color: '#334155', 
-                font: { size: 11, weight: '600' }
-              }
-            }
-          }
-        }
+              ticks: {
+                color: '#334155',
+                font: { size: 11, weight: '600' },
+              },
+            },
+          },
+        },
       });
     }, 200);
   }
@@ -692,19 +892,31 @@
     }
 
     try {
-      const periodQuery = periodSelect.value ? `?period=${encodeURIComponent(periodSelect.value)}` : '';
-      const res = await fetchWithTimeout(`${apiUrl(`/student/${id}/grades`)}${periodQuery}`);
+      const periodQuery = periodSelect.value
+        ? `?period=${encodeURIComponent(periodSelect.value)}`
+        : '';
+      const res = await fetchWithTimeout(
+        `${apiUrl(`/student/${id}/grades`)}${periodQuery}`,
+      );
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Помилка завантаження студента');
+      if (!res.ok) {
+        throw new Error(data.error || 'Помилка завантаження студента');
+      }
 
       modalTitle.textContent = data.student.fullName;
+      updateUrlState({ studentId: id });
       modalSub.innerHTML = `Група ${data.student.group} <span style="color: var(--text-muted); margin-left: 8px;">Ранг у групі: <strong style="color: var(--accent);">#${groupRank || '—'}</strong></span>`;
       currentStudentGrades = data.items || data.grades || [];
       renderModalGrades(currentStudentGrades, data.student.group);
       renderTrendChart(currentStudentGrades);
 
-      if (sortSelect.value === 'by-subject-average-desc' && subjectSelect.value) {
-        const gradeToShow = currentStudentGrades.find(g => g.subject === subjectSelect.value);
+      if (
+        sortSelect.value === 'by-subject-average-desc' &&
+        subjectSelect.value
+      ) {
+        const gradeToShow = currentStudentGrades.find(
+          (g) => g.subject === subjectSelect.value,
+        );
         if (gradeToShow) {
           showSubjectDetails(gradeToShow);
         }
@@ -717,7 +929,10 @@
         `(${summary.attendedLessons ?? '—'} з ${summary.totalLessons ?? '—'} занять)`;
     } catch (e) {
       modalTitle.textContent = 'Помилка';
-      modalSub.textContent = e.name === 'AbortError' ? 'Час очікування сервера вичерпано.' : e.message || '';
+      modalSub.textContent =
+        e.name === 'AbortError'
+          ? 'Час очікування сервера вичерпано.'
+          : e.message || '';
     }
   }
 
@@ -731,14 +946,20 @@
       trendChartInstance.destroy();
       trendChartInstance = null;
     }
-    document.querySelectorAll('.data-table tbody tr').forEach((tr) => tr.removeAttribute('aria-selected'));
+    document
+      .querySelectorAll('.data-table tbody tr')
+      .forEach((tr) => tr.removeAttribute('aria-selected'));
+    updateUrlState({ removeStudent: true });
   }
 
   sortSelect.addEventListener('change', showSubjectField);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    if (sortSelect.value === 'by-subject-average-desc' && !subjectSelect.value) {
+    if (
+      sortSelect.value === 'by-subject-average-desc' &&
+      !subjectSelect.value
+    ) {
       errorBanner.textContent = 'Оберіть предмет для цього виду сортування.';
       errorBanner.hidden = false;
       return;
@@ -776,11 +997,26 @@
   }
 
   document.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      openQuickSearch();
+      return;
+    }
     if (event.key === 'Escape' && !modal.hidden) {
       closeModal();
       event.preventDefault();
     }
   });
+
+  quickSearchInput?.addEventListener('input', () => {
+    const q = quickSearchInput.value.trim().toLowerCase();
+    const filtered = q
+      ? lastRows.filter((row) => row.fullName.toLowerCase().includes(q))
+      : lastRows;
+    renderQuickSearchResults(filtered);
+  });
+  quickSearchClose?.addEventListener('click', closeQuickSearch);
+  quickSearchBackdrop?.addEventListener('click', closeQuickSearch);
 
   modal.hidden = true;
   modalBackdrop.hidden = true;
@@ -793,7 +1029,10 @@
   function debouncedLoadReport() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      if (sortSelect.value === 'by-subject-average-desc' && !subjectSelect.value) {
+      if (
+        sortSelect.value === 'by-subject-average-desc' &&
+        !subjectSelect.value
+      ) {
         errorBanner.textContent = 'Оберіть предмет для цього виду сортування.';
         errorBanner.hidden = false;
         return;
@@ -813,8 +1052,21 @@
   queryInput.addEventListener('input', debouncedLoadReport);
 
   showSubjectField();
+  connectRealtime();
   loadMeta()
-    .then(() => loadReport())
+    .then(() => {
+      applyStateToForm();
+      return loadReport();
+    })
+    .then(() => {
+      const studentId = Number.parseInt(
+        new URL(window.location.href).searchParams.get('student'),
+        10,
+      );
+      if (Number.isFinite(studentId)) {
+        openStudentModal(studentId, 0);
+      }
+    })
     .catch((e) => {
       errorBanner.textContent = e.message || 'Помилка старту';
       errorBanner.hidden = false;

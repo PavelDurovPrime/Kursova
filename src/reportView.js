@@ -1,22 +1,28 @@
 const {
   buildStudentReport,
   buildStudentSubjectAverage,
-  sortStudents
+  sortStudents,
 } = require('./services/gradeService');
 
 function buildReportStats(rows) {
   const finiteAverages = rows.filter((r) => Number.isFinite(r.average));
   const bestStudent =
     finiteAverages.length > 0
-      ? finiteAverages.reduce((best, cur) => (cur.average > best.average ? cur : best), finiteAverages[0])
+      ? finiteAverages.reduce(
+          (best, cur) => (cur.average > best.average ? cur : best),
+          finiteAverages[0],
+        )
       : null;
 
   const groupAverage =
-    finiteAverages.length > 0 ? finiteAverages.reduce((acc, r) => acc + r.average, 0) / finiteAverages.length : NaN;
+    finiteAverages.length > 0
+      ? finiteAverages.reduce((acc, r) => acc + r.average, 0) /
+        finiteAverages.length
+      : NaN;
 
   return {
     bestStudent,
-    groupAverage
+    groupAverage,
   };
 }
 
@@ -26,7 +32,7 @@ function applyGroupFilter(students, grades, groupName) {
       scopedStudents: students,
       scopedGrades: grades,
       scopeLabel: 'весь потік',
-      scopeAverageCaption: 'Загальний середній бал по потоку'
+      scopeAverageCaption: 'Загальний середній бал по потоку',
     };
   }
 
@@ -38,7 +44,7 @@ function applyGroupFilter(students, grades, groupName) {
     scopedStudents,
     scopedGrades,
     scopeLabel: `група "${groupName}"`,
-    scopeAverageCaption: `Загальний середній бал по групі "${groupName}"`
+    scopeAverageCaption: `Загальний середній бал по групі "${groupName}"`,
   };
 }
 
@@ -54,10 +60,17 @@ const SORT_LABELS = {
   'by-average-desc': 'за середнім балом (від більшого)',
   'by-count-desc': 'за кількістю оцінок',
   'by-subject-average-desc': 'за балом з предмета',
-  'by-attendance-desc': 'за відвідуваністю (%)'
+  'by-attendance-desc': 'за відвідуваністю (%)',
 };
 
-function buildReportView({ students, grades, sortStrategy, subject, scopeLabel, period }) {
+function buildReportView({
+  students,
+  grades,
+  sortStrategy,
+  subject,
+  scopeLabel,
+  period,
+}) {
   const baseRows =
     sortStrategy === 'by-subject-average-desc'
       ? buildStudentSubjectAverage(students, grades, subject)
@@ -84,5 +97,5 @@ module.exports = {
   applyGroupFilter,
   buildReportView,
   periodCaption,
-  SORT_LABELS
+  SORT_LABELS,
 };

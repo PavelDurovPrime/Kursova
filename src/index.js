@@ -11,9 +11,13 @@ const {
   sortStudents,
   findStudentsByName,
   filterGradesByPeriod,
-  normalizePeriod
+  normalizePeriod,
 } = require('./services/gradeService');
-const { buildReportStats, applyGroupFilter, buildReportView } = require('./reportView');
+const {
+  buildReportStats,
+  applyGroupFilter,
+  buildReportView,
+} = require('./reportView');
 
 function parseArgs(argv) {
   const args = {};
@@ -42,9 +46,11 @@ function formatPct(value) {
 
 function printStudentsTable(rows) {
   console.log(
-    'ПІБ                            | Група             | Оц. | Середн. | Відвід.%'
+    'ПІБ                            | Група             | Оц. | Середн. | Відвід.%',
   );
-  console.log('-------------------------------|------------------|-----|---------|--------');
+  console.log(
+    '-------------------------------|------------------|-----|---------|--------',
+  );
 
   for (const r of rows) {
     const fullNameStr = String(r.fullName).padEnd(30, ' ');
@@ -53,7 +59,9 @@ function printStudentsTable(rows) {
     const avgStr = formatAvg(r.average).padStart(7, ' ');
     const attStr = formatPct(r.attendancePercent).padStart(6, ' ');
 
-    console.log(`${fullNameStr} | ${groupStr} | ${cnt} | ${avgStr} | ${attStr}`);
+    console.log(
+      `${fullNameStr} | ${groupStr} | ${cnt} | ${avgStr} | ${attStr}`,
+    );
   }
 }
 
@@ -63,19 +71,23 @@ function printReportFooter(stats, scopeAverageCaption) {
     console.log(
       yellow(
         `Найкращий студент курсу: ${stats.bestStudent.fullName} (${stats.bestStudent.group}) — ${formatAvg(
-          stats.bestStudent.average
-        )}`
-      )
+          stats.bestStudent.average,
+        )}`,
+      ),
     );
   } else {
     console.log(yellow('Найкращий студент курсу: —'));
   }
 
-  console.log(yellow(`${scopeAverageCaption}: ${formatAvg(stats.groupAverage)}`));
+  console.log(
+    yellow(`${scopeAverageCaption}: ${formatAvg(stats.groupAverage)}`),
+  );
 }
 
 function normalizeFormat(value) {
-  const v = String(value || '').trim().toLowerCase();
+  const v = String(value || '')
+    .trim()
+    .toLowerCase();
   return v === 'html' ? 'html' : 'txt';
 }
 
@@ -86,7 +98,10 @@ function parseTopArg(args) {
 }
 
 async function showMenu(students, allGrades) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
   const ask = (q) =>
     new Promise((resolve) => {
       rl.question(q, (answer) => resolve(answer));
@@ -125,7 +140,9 @@ async function showMenu(students, allGrades) {
     groupNames.forEach((g, idx) => console.log(`${idx + 1} — ${g}`));
 
     const picked = Number(String(await ask('Оберіть номер групи: ')).trim());
-    if (!Number.isFinite(picked) || picked < 1 || picked > groupNames.length) return applyGroupFilter(students, grades, null);
+    if (!Number.isFinite(picked) || picked < 1 || picked > groupNames.length) {
+      return applyGroupFilter(students, grades, null);
+    }
 
     const groupName = groupNames[picked - 1];
     return applyGroupFilter(students, grades, groupName);
@@ -133,7 +150,6 @@ async function showMenu(students, allGrades) {
 
   let currentReport = null;
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     console.log('');
     console.log('Меню:');
@@ -165,7 +181,7 @@ async function showMenu(students, allGrades) {
         title,
         rows,
         stats,
-        scopeAverageCaption: scope.scopeAverageCaption
+        scopeAverageCaption: scope.scopeAverageCaption,
       };
 
       console.log(`\n${title}`);
@@ -178,7 +194,7 @@ async function showMenu(students, allGrades) {
         grades: scope.scopedGrades,
         sortStrategy: 'by-name',
         scopeLabel: scope.scopeLabel,
-        period: periodKey
+        period: periodKey,
       });
       currentReport.scopeAverageCaption = scope.scopeAverageCaption;
       console.log(`\n${currentReport.title}`);
@@ -191,7 +207,7 @@ async function showMenu(students, allGrades) {
         grades: scope.scopedGrades,
         sortStrategy: 'by-average-desc',
         scopeLabel: scope.scopeLabel,
-        period: periodKey
+        period: periodKey,
       });
       currentReport.scopeAverageCaption = scope.scopeAverageCaption;
       console.log(`\n${currentReport.title}`);
@@ -211,7 +227,7 @@ async function showMenu(students, allGrades) {
         sortStrategy: 'by-subject-average-desc',
         subject,
         scopeLabel: scope.scopeLabel,
-        period: periodKey
+        period: periodKey,
       });
       currentReport.scopeAverageCaption = scope.scopeAverageCaption;
       console.log(`\n${currentReport.title}`);
@@ -224,7 +240,7 @@ async function showMenu(students, allGrades) {
         grades: scope.scopedGrades,
         sortStrategy: 'by-attendance-desc',
         scopeLabel: scope.scopeLabel,
-        period: periodKey
+        period: periodKey,
       });
       currentReport.scopeAverageCaption = scope.scopeAverageCaption;
       console.log(`\n${currentReport.title}`);
@@ -235,7 +251,9 @@ async function showMenu(students, allGrades) {
         console.log('Спочатку сформуйте звіт (1-5).');
         continue;
       }
-      const formatAnswer = String(await ask('Формат (txt/html) [txt]: ')).trim();
+      const formatAnswer = String(
+        await ask('Формат (txt/html) [txt]: '),
+      ).trim();
       const format = formatAnswer ? normalizeFormat(formatAnswer) : 'txt';
       try {
         const filePath = await saveReportToFile({
@@ -243,12 +261,15 @@ async function showMenu(students, allGrades) {
           rows: currentReport.rows,
           stats: currentReport.stats,
           format,
-          scopeAverageCaption: currentReport.scopeAverageCaption
+          scopeAverageCaption: currentReport.scopeAverageCaption,
         });
         console.log(chalk.green(`Звіт збережено у файл: ${filePath}`));
         await log('success', `Saved report: ${filePath}`);
       } catch (e) {
-        await log('error', `Save report failed: ${e && e.message ? e.message : e}`);
+        await log(
+          'error',
+          `Save report failed: ${e && e.message ? e.message : e}`,
+        );
         console.error(chalk.red('Помилка збереження звіту.'));
       }
     } else {
@@ -273,7 +294,10 @@ async function main() {
     console.log(chalk.green('Базу даних прочитано успішно.'));
     await log('success', 'Успішно прочитано базу даних');
   } catch (e) {
-    await log('error', `Load data failed: ${e && e.message ? e.message : String(e)}`);
+    await log(
+      'error',
+      `Load data failed: ${e && e.message ? e.message : String(e)}`,
+    );
     if (e && e.code === 'DATA_READ_ERROR') {
       console.error(chalk.red('Помилка читання бази даних'));
     } else {
@@ -291,11 +315,8 @@ async function main() {
   }
 
   const groupName = args.group ? String(args.group).trim() : null;
-  const { scopedStudents, scopedGrades, scopeLabel, scopeAverageCaption } = applyGroupFilter(
-    students,
-    gradesPeriod,
-    groupName
-  );
+  const { scopedStudents, scopedGrades, scopeLabel, scopeAverageCaption } =
+    applyGroupFilter(students, gradesPeriod, groupName);
 
   const action = args.action;
 
@@ -304,7 +325,9 @@ async function main() {
     const subject = String(args.subject || '').trim();
 
     if (sortStrategy === 'by-subject-average-desc' && !subject) {
-      console.error('Для сортування по предмету потрібно передати --subject "<назва предмету>".');
+      console.error(
+        'Для сортування по предмету потрібно передати --subject "<назва предмету>".',
+      );
       process.exitCode = 1;
       return;
     }
@@ -315,7 +338,7 @@ async function main() {
       sortStrategy,
       subject: sortStrategy === 'by-subject-average-desc' ? subject : undefined,
       scopeLabel,
-      period
+      period,
     });
 
     const finalRows = top ? view.rows.slice(0, top) : view.rows;
@@ -331,7 +354,7 @@ async function main() {
         rows: finalRows,
         stats: statsFinal,
         format: reportFormat,
-        scopeAverageCaption
+        scopeAverageCaption,
       });
       await log('success', `Saved report: ${filePath}`);
       console.log(chalk.green(`Звіт збережено у файл: ${filePath}`));
@@ -344,19 +367,28 @@ async function main() {
       return;
     }
 
-    const matches = findStudentsByName(buildStudentReport(scopedStudents, scopedGrades), query);
+    const matches = findStudentsByName(
+      buildStudentReport(scopedStudents, scopedGrades),
+      query,
+    );
     let sorted = matches;
 
     const sortStrategy = args.sort;
     if (sortStrategy === 'by-subject-average-desc') {
       const subject = String(args.subject || '').trim();
       if (!subject) {
-        console.error('Для сортування по предмету потрібно передати --subject "<назва предмету>".');
+        console.error(
+          'Для сортування по предмету потрібно передати --subject "<назва предмету>".',
+        );
         process.exitCode = 1;
         return;
       }
 
-      const subjectReport = buildStudentSubjectAverage(matches, scopedGrades, subject);
+      const subjectReport = buildStudentSubjectAverage(
+        matches,
+        scopedGrades,
+        subject,
+      );
       sorted = sortStudents(subjectReport, 'by-subject-average-desc');
     } else if (sortStrategy) {
       sorted = sortStudents(matches, sortStrategy);
@@ -364,8 +396,9 @@ async function main() {
 
     const finalList = top ? sorted.slice(0, top) : sorted;
     console.log(`\nРезультати пошуку за "${query}":`);
-    if (finalList.length === 0) console.log('Нічого не знайдено.');
-    else {
+    if (finalList.length === 0) {
+      console.log('Нічого не знайдено.');
+    } else {
       if (top) console.log(`Показано перші ${top} результат(ів).`);
       printStudentsTable(finalList);
       const statsFinal = buildReportStats(finalList);
@@ -378,7 +411,7 @@ async function main() {
           rows: finalList,
           stats: statsFinal,
           format: reportFormat,
-          scopeAverageCaption
+          scopeAverageCaption,
         });
         await log('success', `Saved report: ${filePath}`);
         console.log(chalk.green(`Звіт збережено у файл: ${filePath}`));
@@ -389,7 +422,9 @@ async function main() {
     if (sortStrategy === 'by-subject-average-desc') {
       const subject = String(args.subject || '').trim();
       if (!subject) {
-        console.error('Для сортування по предмету потрібно передати --subject "<назва предмету>".');
+        console.error(
+          'Для сортування по предмету потрібно передати --subject "<назва предмету>".',
+        );
         process.exitCode = 1;
         return;
       }
@@ -400,7 +435,7 @@ async function main() {
         sortStrategy,
         subject,
         scopeLabel,
-        period
+        period,
       });
       const finalRows = top ? view.rows.slice(0, top) : view.rows;
       console.log(`\n${view.title}`);
@@ -415,7 +450,7 @@ async function main() {
           rows: finalRows,
           stats: statsFinal,
           format: reportFormat,
-          scopeAverageCaption
+          scopeAverageCaption,
         });
         await log('success', `Saved report: ${filePath}`);
         console.log(chalk.green(`Звіт збережено у файл: ${filePath}`));
@@ -423,7 +458,6 @@ async function main() {
     } else {
       const reportRows = buildStudentAverage(scopedStudents, scopedGrades);
       const sortedRows = sortStudents(reportRows, sortStrategy);
-      const stats = buildReportStats(sortedRows);
       const finalRows = top ? sortedRows.slice(0, top) : sortedRows;
 
       console.log(`\nСередній бал по студентах (сортування: ${sortStrategy})`);
@@ -439,14 +473,16 @@ async function main() {
           rows: finalRows,
           stats: statsFinal,
           format: reportFormat,
-          scopeAverageCaption
+          scopeAverageCaption,
         });
         await log('success', `Saved report: ${filePath}`);
         console.log(chalk.green(`Звіт збережено у файл: ${filePath}`));
       }
     }
   } else {
-    console.error('Невідома дія. Використовуйте --action report, --action find або --action avg.');
+    console.error(
+      'Невідома дія. Використовуйте --action report, --action find або --action avg.',
+    );
     process.exitCode = 1;
   }
 }
