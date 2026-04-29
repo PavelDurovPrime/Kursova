@@ -19,7 +19,7 @@
   const statCards = $('#statCards');
   const metaCount = $('#metaCount');
   const metaGrades = $('#metaGrades');
-  const exportPdf = $('#exportPdf');
+  const exportHtml = $('#exportHtml');
   const reportCountLine = $('#reportCountLine');
   const reportCountNum = $('#reportCountNum');
   const reportCountWord = $('#reportCountWord');
@@ -198,7 +198,7 @@
   }
 
   function updateExportLinks() {
-    exportPdf.href = `${apiUrl('/export')}?format=pdf&${buildQuery()}`;
+    exportHtml.href = `${apiUrl('/export')}?format=html&${buildQuery()}`;
   }
 
   function ukrainianCountWord(n) {
@@ -226,15 +226,7 @@
     return name.substring(0, 2).toUpperCase();
   }
 
-  function getTierBadge(average) {
-    if (!Number.isFinite(average)) return '';
-    if (average >= 95) {
-      return '<span class="tier-badge tier-diamond" title="Diamond Tier">💎 Diamond</span>';
-    } else if (average >= 90) {
-      return '<span class="tier-badge tier-platinum" title="Platinum Tier">🌟 Platinum</span>';
-    } else if (average >= 75) {
-      return '<span class="tier-badge tier-gold" title="Gold Tier">⭐ Gold</span>';
-    }
+  function getTierBadge() {
     return '';
   }
 
@@ -354,7 +346,13 @@
       const fireStreak = hasFireStreak(row.grades)
         ? '<span class="fire-streak" title="5+ оцінок 95+">🔥<span class="fire-count">5</span></span>'
         : '';
+      let rankClass;
+      if (index === 0) rankClass = 'rank-gold';
+      else if (index === 1) rankClass = 'rank-silver';
+      else if (index === 2) rankClass = 'rank-bronze';
+      else rankClass = 'rank-regular';
       tr.innerHTML = `
+        <td><span class="student-rank ${rankClass}">${index + 1}</span></td>
         <td><span class="avatar">${getInitials(row.fullName)}</span></td>
         <td>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -365,11 +363,12 @@
         <td>${escapeHtml(row.group)}</td>
         <td class="num"></td>
         <td class="num"></td>
+        <td class="num"></td>
       `;
 
       const cells = tr.querySelectorAll('td');
-      cells[3].appendChild(formatAvgCell(row.averageFormatted, row.average));
-      cells[4].appendChild(
+      cells[4].appendChild(formatAvgCell(row.averageFormatted, row.average));
+      cells[5].appendChild(
         formatAttCell(
           row.attendanceFormatted,
           row.attendancePercent,
@@ -377,6 +376,10 @@
           row.totalLessons,
         ),
       );
+      const gradeCountSpan = document.createElement('span');
+      gradeCountSpan.className = 'grade-count';
+      gradeCountSpan.textContent = row.grades?.length || 0;
+      cells[6].appendChild(gradeCountSpan);
 
       tr.addEventListener('click', () => openStudentModal(row.id, groupRank));
       tr.addEventListener('keydown', (event) => {
@@ -738,7 +741,6 @@
   function renderTrendChart(grades) {
     if (!trendChartCanvas || !window.Chart) return;
 
-    // Destroy previous chart
     if (trendChartInstance) {
       trendChartInstance.destroy();
       trendChartInstance = null;
@@ -885,7 +887,6 @@
     modal.hidden = false;
     modalBackdrop.hidden = false;
 
-    // Destroy previous chart
     if (trendChartInstance) {
       trendChartInstance.destroy();
       trendChartInstance = null;
