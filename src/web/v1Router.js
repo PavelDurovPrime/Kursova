@@ -27,6 +27,11 @@ const {
   cacheDeleteByPrefix,
 } = require('../services/cacheService');
 const { broadcast } = require('../services/realtimeService');
+const {
+  createAuthProxy,
+  createRateLimiter,
+} = require('./middlewares/authProxy');
+const { PriorityDeque } = require('../lib/priorityQueue');
 
 const upload = multer({ storage: multer.memoryStorage() });
 const authLimiter = rateLimit({
@@ -283,6 +288,47 @@ function makeApiV1Router({ dataPath, getDataset }) {
       res.status(201).json({ item });
     },
   );
+
+  router.use(createAuthProxy());
+  router.use(createRateLimiter({ maxRequests: 100, windowMs: 60 * 1000 }));
+
+  router.get('/top-students', authenticate, async (req, res) => {
+    const limit = Math.min(Number.parseInt(req.query.limit, 10) || 10, 50);
+
+    const students = await prisma.student.findMany({
+      include: { grades: true },
+    });
+
+    const queue = new PriorityDeque({
+      compare: (a, b) => b.priority - a.priority,
+    });
+
+    students.forEach((student) => {
+      const avg =
+        student.grades.length > 0
+          ? student.grades.reduce((sum, g) => sum + (g.score || 0), 0) /
+            student.grades.length
+          : 0;
+      queue.enqueue(
+        {
+          id: student.id,
+          fullName: student.fullName,
+          group: student.group,
+          average: avg.toFixed(2),
+          gradeCount: student.grades.length,
+        },
+        avg,
+      );
+    });
+
+    const topStudents = queue.getTopN(limit);
+
+    res.json({
+      students: topStudents,
+      total: queue.size(),
+      limit,
+    });
+  });
 
   router.use((error, _req, res) => {
     log(

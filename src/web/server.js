@@ -24,6 +24,7 @@ const {
 const { makeApiV1Router } = require('./v1Router');
 const { initWebSocket } = require('../services/realtimeService');
 const { ensureDefaultUsers } = require('../services/authService');
+const { requestLogger } = require('./middlewares/requestLogger');
 const {
   fibonacciGenerator,
   weekDayGenerator,
@@ -62,6 +63,7 @@ app.use(
     contentSecurityPolicy: false,
   }),
 );
+app.use(requestLogger({ level: 'INFO' }));
 app.use(
   rateLimit({
     windowMs: 60 * 1000,
@@ -244,7 +246,6 @@ api.get('/group-rating', async (_req, res) => {
           sGrades.length > 0
             ? sGrades.reduce((sum, g) => sum + g.value, 0) / sGrades.length
             : 0;
-        // Calculate attendance for this student
         const att = attendanceAggregate(sGrades);
         return { student: s, average: avg, attendance: att };
       });
@@ -255,7 +256,6 @@ api.get('/group-rating', async (_req, res) => {
             studentAverages.length
           : 0;
 
-      // Calculate group attendance using ALL lessons from ALL students
       const allGroupGrades = group.students.flatMap((s) =>
         grades.filter((g) => g.studentId === s.id),
       );
@@ -558,16 +558,16 @@ const PORT = Number.parseInt(process.env.PORT, 10) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 async function start() {
-  try {
-    await ensureDefaultUsers();
-  } catch (e) {
-    console.error('Не вдалося підготувати базу користувачів (Prisma).');
-    console.error(
-      'Підказка: npx prisma generate && npx prisma db push (або npm run db:migrate:json для імпорту з JSON)',
-    );
-    if (e && e.message) console.error(e.message);
-    process.exitCode = 1;
-    return;
+  if (isSqliteMode()) {
+    try {
+      await ensureDefaultUsers();
+    } catch (e) {
+      console.error('Не вдалося підготувати базу користувачів (Prisma).');
+      console.error('Підказка: npx prisma generate && npx prisma db push');
+      if (e && e.message) console.error(e.message);
+      process.exitCode = 1;
+      return;
+    }
   }
 
   try {
