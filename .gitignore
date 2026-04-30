@@ -29,7 +29,6 @@ ehthumbs.db
 Thumbs.db
 
 # IDE
-.cursor/
 .vscode/
 .idea/
 *.swp
@@ -47,4 +46,16 @@ coverage/
 # Build output
 dist/
 build/
-*/skills/metaskills
+
+# Prisma
+prisma/data/
+*.db
+*.db-journal
+
+# Docker
+.dockerignore
+
+# Temp files
+*.tmp
+*.temp
+.cache/
