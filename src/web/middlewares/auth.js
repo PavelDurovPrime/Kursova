@@ -1,9 +1,6 @@
 'use strict';
-
 const jwt = require('jsonwebtoken');
-
 const JWT_SECRET = process.env.JWT_SECRET || 'gradelogic-dev-secret';
-
 function issueToken(user) {
   return jwt.sign(
     {
@@ -15,7 +12,6 @@ function issueToken(user) {
     { expiresIn: '2h' },
   );
 }
-
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const [, token] = authHeader.split(' ');
@@ -26,7 +22,6 @@ function authenticate(req, res, next) {
       details: null,
     });
   }
-
   try {
     req.user = jwt.verify(token, JWT_SECRET);
     return next();
@@ -38,7 +33,6 @@ function authenticate(req, res, next) {
     });
   }
 }
-
 function requireRole(roles) {
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   return (req, res, next) => {
@@ -52,7 +46,6 @@ function requireRole(roles) {
     return next();
   };
 }
-
 module.exports = {
   authenticate,
   issueToken,

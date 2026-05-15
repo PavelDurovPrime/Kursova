@@ -1,13 +1,10 @@
 'use strict';
-
 const Ajv = require('ajv');
-
 const ajv = new Ajv({
   allErrors: true,
   strict: false,
   removeAdditional: false,
 });
-
 function toErrorDetails(errors) {
   return (errors || []).map((error) => ({
     instancePath: error.instancePath,
@@ -15,7 +12,6 @@ function toErrorDetails(errors) {
     keyword: error.keyword,
   }));
 }
-
 function validate(schema, source = 'body') {
   const validateFn = ajv.compile(schema);
   return (req, res, next) => {
@@ -29,5 +25,4 @@ function validate(schema, source = 'body') {
     });
   };
 }
-
 module.exports = { validate };

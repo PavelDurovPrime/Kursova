@@ -1,5 +1,4 @@
 'use strict';
-
 const reportQuerySchema = {
   type: 'object',
   properties: {
@@ -14,7 +13,6 @@ const reportQuerySchema = {
   },
   additionalProperties: true,
 };
-
 module.exports = {
   reportQuerySchema,
 };

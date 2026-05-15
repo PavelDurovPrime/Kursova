@@ -1,5 +1,4 @@
 'use strict';
-
 function memoize(fn, options = {}) {
   const maxSize = Number.isFinite(options.maxSize)
     ? options.maxSize
@@ -9,9 +8,7 @@ function memoize(fn, options = {}) {
     typeof options.keyResolver === 'function'
       ? options.keyResolver
       : (args) => JSON.stringify(args);
-
   const cache = new Map();
-
   return function memoized(...args) {
     const key = keyResolver(args);
     const now = Date.now();
@@ -21,11 +18,9 @@ function memoize(fn, options = {}) {
       record.hits += 1;
       return record.value;
     }
-
     if (record && record.expiresAt && record.expiresAt <= now) {
       cache.delete(key);
     }
-
     const value = fn(...args);
     cache.set(key, {
       value,
@@ -33,7 +28,6 @@ function memoize(fn, options = {}) {
       lastUsedAt: now,
       expiresAt: ttlMs > 0 ? now + ttlMs : null,
     });
-
     if (cache.size > maxSize) {
       let lruKey = null;
       let lruTime = Number.POSITIVE_INFINITY;
@@ -45,9 +39,7 @@ function memoize(fn, options = {}) {
       }
       if (lruKey !== null) cache.delete(lruKey);
     }
-
     return value;
   };
 }
-
 module.exports = { memoize };

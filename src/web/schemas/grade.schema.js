@@ -1,5 +1,4 @@
 'use strict';
-
 const gradeCreateSchema = {
   type: 'object',
   required: [
@@ -20,7 +19,6 @@ const gradeCreateSchema = {
   },
   additionalProperties: false,
 };
-
 const gradePatchSchema = {
   type: 'object',
   properties: {
@@ -32,7 +30,6 @@ const gradePatchSchema = {
   },
   additionalProperties: false,
 };
-
 const csvImportSchema = {
   type: 'object',
   required: ['dryRun'],
@@ -41,7 +38,6 @@ const csvImportSchema = {
   },
   additionalProperties: false,
 };
-
 module.exports = {
   csvImportSchema,
   gradeCreateSchema,

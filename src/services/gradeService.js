@@ -1,7 +1,5 @@
-/**
- * Період: увесь навчальний рік або окремий семестр.
- * @param {'all'|'1'|'2'} period
- */
+'use strict';
+const { memoize } = require('../lib/memoization');
 function normalizePeriod(period) {
   const s = String(period ?? 'all')
     .trim()
@@ -10,14 +8,12 @@ function normalizePeriod(period) {
   if (s === '2' || s === 'sem2' || s === 'semester2' || s === 'ii') return '2';
   return 'all';
 }
-
 function filterGradesByPeriod(grades, period) {
   const p = normalizePeriod(period);
   if (p === 'all') return grades;
   const sem = p === '1' ? 1 : 2;
   return grades.filter((g) => g.semester === sem);
 }
-
 function valueToECTS(value) {
   if (!Number.isFinite(value)) return null;
   if (value >= 90) return 'A';
@@ -27,13 +23,11 @@ function valueToECTS(value) {
   if (value >= 60) return 'E';
   return 'F';
 }
-
 function mean(nums) {
   const arr = nums.filter((x) => Number.isFinite(x));
   if (arr.length === 0) return NaN;
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
-
 function attendanceAggregate(gradeList) {
   if (!gradeList.length) {
     return { attended: 0, total: 0, percent: NaN };
@@ -43,7 +37,6 @@ function attendanceAggregate(gradeList) {
   const percent = total > 0 ? (attended / total) * 100 : NaN;
   return { attended, total, percent };
 }
-
 function buildReportRowBase(student, gradeCount, average, att) {
   return {
     id: student.id,
@@ -57,8 +50,7 @@ function buildReportRowBase(student, gradeCount, average, att) {
     totalLessons: att.total,
   };
 }
-
-function buildStudentReport(students, grades) {
+function _buildStudentReport(students, grades) {
   return students.map((s) => {
     const sGrades = grades.filter((g) => g.studentId === s.id);
     const count = sGrades.length;
@@ -67,7 +59,10 @@ function buildStudentReport(students, grades) {
     return buildReportRowBase(s, count, avg, att);
   });
 }
-
+const buildStudentReport = memoize(_buildStudentReport, {
+  maxSize: 50,
+  ttlMs: 30_000,
+});
 const strategies = {
   'by-name': (a, b) => a.fullName.localeCompare(b.fullName, 'uk'),
   'by-average-desc': (a, b) => {
@@ -91,22 +86,18 @@ const strategies = {
     return bVal - aVal;
   },
 };
-
 function sortStudents(students, strategyName) {
   const cmp = strategies[strategyName] || strategies['by-name'];
   return [...students].sort(cmp);
 }
-
 function findStudentsByName(students, query) {
   const lower = query.toLowerCase();
   return students.filter((s) => s.fullName.toLowerCase().includes(lower));
 }
-
 function buildStudentAverage(students, grades) {
   return buildStudentReport(students, grades);
 }
-
-function buildStudentSubjectAverage(students, grades, subjectName) {
+function _buildStudentSubjectAverage(students, grades, subjectName) {
   const normalizedSubject = String(subjectName || '')
     .trim()
     .toLowerCase();
@@ -116,7 +107,6 @@ function buildStudentSubjectAverage(students, grades, subjectName) {
       return buildReportRowBase(s, 0, NaN, empty);
     });
   }
-
   return students.map((s) => {
     const list = grades.filter(
       (g) =>
@@ -131,7 +121,10 @@ function buildStudentSubjectAverage(students, grades, subjectName) {
     return buildReportRowBase(s, count, avg, att);
   });
 }
-
+const buildStudentSubjectAverage = memoize(_buildStudentSubjectAverage, {
+  maxSize: 50,
+  ttlMs: 30_000,
+});
 module.exports = {
   normalizePeriod,
   filterGradesByPeriod,

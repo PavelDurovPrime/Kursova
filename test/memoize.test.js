@@ -1,9 +1,7 @@
 'use strict';
-
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { memoize } = require('../src/lib/memoization');
-
 test('memoize caches value', () => {
   let calls = 0;
   const fn = memoize((x) => {

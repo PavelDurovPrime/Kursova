@@ -1,13 +1,11 @@
 'use strict';
-
 const { prisma } = require('./prismaClient');
-
+const { asyncMap } = require('../../lib/async-array');
 async function getDatasetFromSqlite() {
   const students = await prisma.student.findMany({
     orderBy: [{ groupName: 'asc' }, { fullName: 'asc' }],
   });
   const grades = await prisma.grade.findMany();
-
   return {
     students: students.map((student) => ({
       id: student.id,
@@ -25,7 +23,6 @@ async function getDatasetFromSqlite() {
     })),
   };
 }
-
 async function createGrade(input) {
   return prisma.grade.create({
     data: {
@@ -38,29 +35,22 @@ async function createGrade(input) {
     },
   });
 }
-
 async function updateGrade(gradeId, patch) {
   return prisma.grade.update({
     where: { id: gradeId },
     data: patch,
   });
 }
-
 async function deleteGrade(gradeId) {
   await prisma.grade.delete({
     where: { id: gradeId },
   });
 }
-
-async function createManyGrades(items) {
-  const created = [];
-  for (const item of items) {
-    const grade = await createGrade(item);
-    created.push(grade);
-  }
-  return created;
+async function createManyGrades(items, options = {}) {
+  return asyncMap(items, (item) => createGrade(item), {
+    signal: options.signal,
+  });
 }
-
 async function listAuditLogs({ page, limit, action, entity }) {
   const where = {};
   if (action) where.action = action;
@@ -77,7 +67,6 @@ async function listAuditLogs({ page, limit, action, entity }) {
   ]);
   return { items, total };
 }
-
 async function writeAuditLog(entry) {
   return prisma.auditLog.create({
     data: {
@@ -89,7 +78,6 @@ async function writeAuditLog(entry) {
     },
   });
 }
-
 module.exports = {
   createGrade,
   createManyGrades,

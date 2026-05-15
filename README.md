@@ -10,22 +10,18 @@
 - **Досягнення** — індикатори успішності
 - **Експорт** — HTML
 
----
-
 ## Технології
 
-- **Backend**: Node.js + Express
-- **Database**: SQLite (Prisma)
-- **Frontend**: JavaScript + Chart.js
-- **Auth**: JWT tokens
-
----
+- **Backend:** Node.js + Express
+- **Database:** SQLite (Prisma)
+- **Frontend:** JavaScript + Chart.js
+- **Auth:** JWT tokens
 
 ## Архітектура
 
-```
+```text
 src/
-├── web/              # Web інтерфейс (HTML, CSS, JS)
+├── web/              # Фронт
 ├── services/         # Бізнес-логіка
 ├── repository/       # Робота з БД
 ├── models/           # Моделі даних
@@ -33,10 +29,10 @@ src/
     ├── priorityQueue/    # Пріоритетна черга
     ├── generators/       # Генератори
     ├── memoization/      # Кешування
-    └── async-array/      # Асинхронні операції
+    ├── async-array/      # Асинхронні операції
+    ├── reactive/         # EventBus (pub/sub)
+    └── decorators/       # Декоратор логування
 ```
-
----
 
 ## API
 
@@ -46,34 +42,16 @@ src/
 - `GET /api/v1/export` — експорт звіту
 - `POST /api/v1/import/csv` — імпорт даних
 
----
-
-## Запуск
-
-# Встановлення
-
-npm install
-
-# Налаштування БД
-
-npm run db:generate
-npm run db:push
-
-# Запуск сервера
-
-## npm start
-
 ## Команди
 
-|---------|------|
-| `npm start` | Запуск сервера |
-| `npm test` | Тести |
-| `npm run lint` | Перевірка коду |
+| Команда               | Опис           |
+| --------------------- | -------------- |
+| `npm start`           | Запуск сервера |
+| `npm test`            | Тести          |
+| `npm run lint`        | Перевірка коду |
 | `npm run db:generate` | Оновити Prisma |
-| `npm run db:push` | Оновити БД |
+| `npm run db:push`     | Оновити БД     |
 
 ---
 
-## Автор
-
-Черноплечий Андрій IM-52 — курсова робота 2026
+**Автор:** Черноплечий Андрій IM-52 — курсова робота 2026

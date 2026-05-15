@@ -1,5 +1,4 @@
 'use strict';
-
 const loginSchema = {
   type: 'object',
   required: ['email', 'password'],
@@ -9,5 +8,4 @@ const loginSchema = {
   },
   additionalProperties: false,
 };
-
 module.exports = { loginSchema };

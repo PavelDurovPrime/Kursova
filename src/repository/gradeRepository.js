@@ -4,7 +4,6 @@ const Ajv = require('ajv');
 const { Student } = require('../models/Student');
 const { Grade } = require('../models/Grade');
 const { log } = require('../services/logger');
-
 function createSchema() {
   return {
     type: 'object',
@@ -43,7 +42,6 @@ function createSchema() {
     additionalProperties: false,
   };
 }
-
 function validateUniqueness(students) {
   const ids = new Set();
   const fullNames = new Set();
@@ -55,7 +53,6 @@ function validateUniqueness(students) {
   }
   return true;
 }
-
 function normalizeGradeRecord(g) {
   const semester = g.semester === 2 ? 2 : 1;
   const totalLessons =
@@ -84,7 +81,6 @@ function normalizeGradeRecord(g) {
     totalLessons,
   };
 }
-
 function validateGradeUniqueness(normalizedGrades) {
   const seen = new Set();
   for (const g of normalizedGrades) {
@@ -94,31 +90,24 @@ function validateGradeUniqueness(normalizedGrades) {
   }
   return true;
 }
-
 function validateDataStructure(parsed) {
   const ajv = new Ajv({ allErrors: true, strict: false });
   const schema = createSchema();
   const validate = ajv.compile(schema);
-
   const ok = validate(parsed);
   if (!ok) return false;
-
   const students = (parsed.students || []).map((s) => ({
     id: s.id,
     fullName: s.fullName,
   }));
-
   if (!validateUniqueness(students)) return false;
-
   const normalized = (parsed.grades || []).map(normalizeGradeRecord);
   return validateGradeUniqueness(normalized);
 }
-
 async function loadData(filePath) {
   const fullPath = path.isAbsolute(filePath)
     ? filePath
     : path.join(process.cwd(), filePath);
-
   let raw;
   try {
     raw = await fs.readFile(fullPath, 'utf8');
@@ -127,13 +116,11 @@ async function loadData(filePath) {
     err.code = 'DATA_READ_ERROR';
     throw err;
   }
-
   if (!String(raw).trim()) {
     const err = new Error('DATA_READ_ERROR');
     err.code = 'DATA_READ_ERROR';
     throw err;
   }
-
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -142,36 +129,25 @@ async function loadData(filePath) {
     err.code = 'DATA_READ_ERROR';
     throw err;
   }
-
   const isValidStructure = validateDataStructure(parsed);
   if (!isValidStructure) {
     const err = new Error('DATA_VALIDATION_ERROR');
     err.code = 'DATA_VALIDATION_ERROR';
     throw err;
   }
-
   const parsedStudents = parsed.students || [];
   const parsedGradesRaw = parsed.grades || [];
-  /** Якщо у файлі немає студентів або оцінок — генеруємо демо-потік 150 осіб (2 семестри). Інакше беремо дані з файлу. */
   const shouldGenerateStream =
     parsedStudents.length < 1 || parsedGradesRaw.length < 1;
-
   const defaultSubjects = ['Програмування', 'Математика', 'Фізика'];
   const parsedSubjects = [...new Set(parsedGradesRaw.map((g) => g.subject))];
   const subjects =
     parsedSubjects.length > 0
       ? parsedSubjects.slice(0, defaultSubjects.length)
       : defaultSubjects;
-
   if (shouldGenerateStream) {
     const targetStudentsCount = 150;
-    const groupNames = [
-      'ІТ-Група А',
-      'ІТ-Група Б',
-      'Дані-Група В',
-      'Безпека-Група Г',
-      'ПЗ-Група Д',
-    ];
+    const groupNames = ['IP-12', 'IP-13', 'IP-14', 'IP-16', 'IP-17M'];
     const firstNames = ['Іван', 'Олена', 'Максим', 'Анна', 'Петро'];
     const middleNames = [
       'Іванович',
@@ -212,43 +188,53 @@ async function loadData(filePath) {
       'Білик',
       'Савчук',
     ];
-
     const subjectRules = {
       Програмування: { base: 60, mod: 41, mul: 7 },
       Математика: { base: 50, mod: 51, mul: 11 },
       Фізика: { base: 55, mod: 46, mul: 13 },
     };
-
     const students = [];
     const grades = [];
-
     for (let i = 0; i < targetStudentsCount; i += 1) {
       const id = i + 1;
-      const groupIndex = Math.floor(i / 30);
+      let groupIndex;
+      if (i < 55) groupIndex = 0;
+      else if (i < 70) groupIndex = 1;
+      else if (i < 80) groupIndex = 2;
+      else if (i < 130) groupIndex = 3;
+      else groupIndex = 4;
       const firstIndex = groupIndex;
-
       const fullName = `${lastNames[i % lastNames.length]} ${firstNames[firstIndex]} ${middleNames[i % middleNames.length]}`;
       const group = groupNames[groupIndex];
-
       students.push(new Student(id, fullName, group));
-
       for (const subject of subjects) {
         for (const semester of [1, 2]) {
           const rule = subjectRules[subject] || { base: 50, mod: 51, mul: 17 };
           const shift = semester === 2 ? 3 : 0;
+          const groupBaseModifiers = [-30, -10, 50, -20, 30];
+          const groupBase = Math.max(
+            10,
+            rule.base + groupBaseModifiers[groupIndex],
+          );
           const value = Math.min(
             100,
-            rule.base + shift + ((id * rule.mul + semester * 5) % rule.mod),
+            groupBase + shift + ((id * rule.mul + semester * 5) % rule.mod),
           );
           const totalLessons = 22 + ((id + semester + subject.length) % 11);
-          const ratio =
-            0.52 +
-            ((id * 13 + semester * 17 + subject.charCodeAt(0)) % 45) / 100;
+          const groupAttendanceModifiers = [-0.4, -0.1, +0.5, -0.3, +0.4];
+          const ratio = Math.min(
+            1.0,
+            Math.max(
+              0.0,
+              0.52 +
+                groupAttendanceModifiers[groupIndex] +
+                ((id * 13 + semester * 17 + subject.charCodeAt(0)) % 45) / 100,
+            ),
+          );
           const attendedLessons = Math.min(
             totalLessons,
             Math.round(totalLessons * ratio),
           );
-
           grades.push(
             new Grade(
               id,
@@ -262,14 +248,12 @@ async function loadData(filePath) {
         }
       }
     }
-
     await log(
       'success',
       `Stream generated: students=${students.length}, grades=${grades.length}`,
     );
     return { students, grades };
   }
-
   const students = parsedStudents.map(
     (s) => new Student(s.id, s.fullName, s.group),
   );
@@ -287,5 +271,4 @@ async function loadData(filePath) {
   );
   return { students, grades };
 }
-
 module.exports = { loadData };

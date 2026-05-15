@@ -1,6 +1,5 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
-
 function escapeHtml(text) {
   return String(text)
     .replace(/&/g, '&amp;')
@@ -8,15 +7,12 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
-
 function formatAvg(value) {
   return Number.isFinite(value) ? Number(value).toFixed(2) : '-';
 }
-
 function formatPct(value) {
   return Number.isFinite(value) ? `${Number(value).toFixed(1)}%` : '-';
 }
-
 function generateRowsHtml(rows) {
   const header = `
     <tr>
@@ -27,7 +23,6 @@ function generateRowsHtml(rows) {
       <th>Відвідування</th>
     </tr>
   `;
-
   const body = rows
     .map(
       (r) => `
@@ -41,10 +36,8 @@ function generateRowsHtml(rows) {
     `,
     )
     .join('\n');
-
   return header + body;
 }
-
 function generateReportText(
   title,
   rows,
@@ -62,7 +55,6 @@ function generateReportText(
     );
   }
   lines.push('');
-
   if (stats.bestStudent) {
     lines.push(
       `Найкращий студент курсу: ${stats.bestStudent.fullName} (${stats.bestStudent.group}) — ${formatAvg(
@@ -72,13 +64,10 @@ function generateReportText(
   } else {
     lines.push('Найкращий студент курсу: —');
   }
-
   lines.push(`${scopeAverageCaption}: ${formatAvg(stats.groupAverage)}`);
   lines.push('');
-
   return lines.join('\n');
 }
-
 function generateReportHtml(
   title,
   rows,
@@ -90,9 +79,7 @@ function generateReportHtml(
         stats.bestStudent.group,
       )}) — ${escapeHtml(formatAvg(stats.bestStudent.average))}`
     : 'Найкращий студент курсу: —';
-
   const groupLine = `${escapeHtml(scopeAverageCaption)}: ${escapeHtml(formatAvg(stats.groupAverage))}`;
-
   return `<!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -120,7 +107,6 @@ function generateReportHtml(
 </body>
 </html>`;
 }
-
 async function saveReportToFile({
   title,
   rows,
@@ -130,24 +116,18 @@ async function saveReportToFile({
 }) {
   const reportsDir = path.join(process.cwd(), 'reports');
   await fs.mkdir(reportsDir, { recursive: true });
-
   const now = new Date();
   const dateStr = now.toISOString().replace(/[:T]/g, '-').slice(0, 19);
-
   const safeFormat = String(format).toLowerCase() === 'html' ? 'html' : 'txt';
   const extension = safeFormat === 'html' ? 'html' : 'txt';
-
   const filePath = path.join(reportsDir, `report_${dateStr}.${extension}`);
-
   const content =
     safeFormat === 'html'
       ? generateReportHtml(title, rows, stats, scopeAverageCaption)
       : generateReportText(title, rows, stats, scopeAverageCaption);
-
   await fs.writeFile(filePath, content, 'utf8');
   return filePath;
 }
-
 module.exports = {
   escapeHtml,
   formatPct,

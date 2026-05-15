@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * Перевірка живого сервера: health → login → report (потрібен запущений `npm run web`).
- * BASE=http://127.0.0.1:3000 npm run smoke:api
- */
-
 const BASE = process.env.BASE || 'http://127.0.0.1:3000';
 const EMAIL = process.env.SMOKE_EMAIL || 'teacher@gradelogic.local';
 const PASSWORD = process.env.SMOKE_PASSWORD || 'teacher123';

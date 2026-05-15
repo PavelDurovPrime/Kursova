@@ -1,12 +1,9 @@
 'use strict';
-
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../repository/sqlite/prismaClient');
-
 async function ensureDefaultUsers() {
   const existing = await prisma.user.count();
   if (existing > 0) return;
-
   const users = [
     { email: 'admin@gradelogic.local', password: 'admin123', role: 'admin' },
     {
@@ -20,7 +17,6 @@ async function ensureDefaultUsers() {
       role: 'student',
     },
   ];
-
   for (const user of users) {
     const passwordHash = await bcrypt.hash(user.password, 10);
     await prisma.user.create({
@@ -32,7 +28,6 @@ async function ensureDefaultUsers() {
     });
   }
 }
-
 async function validateCredentials(email, password) {
   const user = await prisma.user.findUnique({
     where: { email: String(email).trim().toLowerCase() },
@@ -46,7 +41,6 @@ async function validateCredentials(email, password) {
     role: user.role,
   };
 }
-
 module.exports = {
   ensureDefaultUsers,
   validateCredentials,

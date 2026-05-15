@@ -1,7 +1,6 @@
 (function () {
   const FETCH_TIMEOUT_MS = 20000;
   const $ = (sel) => document.querySelector(sel);
-
   const periodSelect = $('#period');
   const groupSelect = $('#group');
   const sortSelect = $('#sort');
@@ -35,7 +34,6 @@
   const subjectDetailsTitle = $('#subjectDetailsTitle');
   const subjectDetailsBody = $('#subjectDetailsBody');
   const btnBackToGrades = $('#btnBackToGrades');
-
   const skeletonLoading = $('#skeletonLoading');
   const chartContainer = $('#chartContainer');
   const trendChartCanvas = $('#trendChart');
@@ -45,14 +43,12 @@
   const quickSearchInput = $('#quickSearchInput');
   const quickSearchResults = $('#quickSearchResults');
   const quickSearchClose = $('#quickSearchClose');
-
   let selectedRowId = null;
   let currentStudentGrades = [];
   let trendChartInstance = null;
   let previousRankings = {};
   let groupAverages = {};
   let lastRows = [];
-
   function fetchWithTimeout(url, options = {}) {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
@@ -60,20 +56,12 @@
       clearTimeout(id),
     );
   }
-
   function publicBasePath() {
     const m = document.querySelector('meta[name="gradelogic-public-base"]');
     return String(m?.getAttribute('content') ?? '')
       .trim()
       .replace(/\/$/, '');
   }
-
-  function apiUrl(path) {
-    const base = publicBasePath();
-    const p = path.startsWith('/') ? path : `/${path}`;
-    return base ? `${base}/api${p}` : `/api${p}`;
-  }
-
   function connectRealtime() {
     const base = publicBasePath();
     const wsPath = base ? `${base}/ws` : '/ws';
@@ -87,18 +75,16 @@
           showToast('Рейтинг оновлено в реальному часі');
           loadReport();
         }
-      } catch {
-        /* ignore non-JSON WebSocket payloads */
+      } catch (e) {
+        console.error('Error parsing WS message', e);
       }
     });
   }
-
   function v1Url(path) {
     const base = publicBasePath();
     const p = path.startsWith('/') ? path : `/${path}`;
     return base ? `${base}/api/v1${p}` : `/api/v1${p}`;
   }
-
   function showToast(message) {
     if (!toastStack) return;
     const item = document.createElement('div');
@@ -107,7 +93,6 @@
     toastStack.appendChild(item);
     setTimeout(() => item.remove(), 3200);
   }
-
   function applyStateToForm() {
     const url = new URL(window.location.href);
     const params = url.searchParams;
@@ -125,7 +110,6 @@
       subjectSelect.value = subject;
     }
   }
-
   function updateUrlState(extra = {}) {
     const url = new URL(window.location.href);
     const params = url.searchParams;
@@ -141,12 +125,10 @@
     const query = queryInput.value.trim();
     if (query) params.set('query', query);
     else params.delete('query');
-
     if (extra.studentId) params.set('student', String(extra.studentId));
     if (extra.removeStudent) params.delete('student');
     window.history.replaceState({}, '', url.toString());
   }
-
   function openQuickSearch() {
     quickSearchBackdrop.hidden = false;
     quickSearchModal.hidden = false;
@@ -154,12 +136,10 @@
     renderQuickSearchResults(lastRows);
     quickSearchInput.focus();
   }
-
   function closeQuickSearch() {
     quickSearchBackdrop.hidden = true;
     quickSearchModal.hidden = true;
   }
-
   function renderQuickSearchResults(rows) {
     quickSearchResults.innerHTML = '';
     const limited = rows.slice(0, 15);
@@ -173,17 +153,14 @@
       quickSearchResults.appendChild(li);
     }
   }
-
   function escapeHtml(value) {
     const d = document.createElement('div');
     d.textContent = value;
     return d.innerHTML;
   }
-
   function showSubjectField() {
     subjectField.hidden = sortSelect.value !== 'by-subject-average-desc';
   }
-
   function buildQuery() {
     const params = new URLSearchParams();
     if (periodSelect.value) params.set('period', periodSelect.value);
@@ -196,11 +173,9 @@
     if (query) params.set('query', query);
     return params.toString();
   }
-
   function updateExportLinks() {
-    exportHtml.href = `${apiUrl('/export')}?format=html&${buildQuery()}`;
+    exportHtml.href = `${v1Url('/export')}?format=html&${buildQuery()}`;
   }
-
   function ukrainianCountWord(n) {
     const abs = Math.abs(n) % 100;
     const d = abs % 10;
@@ -209,14 +184,12 @@
     if (d === 1) return 'студент';
     return 'студентів';
   }
-
   function updateReportCount(n) {
     const count = Number(n) || 0;
     reportCountNum.textContent = String(count);
     reportCountWord.textContent = ukrainianCountWord(count);
     reportCountLine.hidden = false;
   }
-
   function getInitials(name) {
     if (!name) return '?';
     const parts = name.split(' ');
@@ -225,22 +198,18 @@
     }
     return name.substring(0, 2).toUpperCase();
   }
-
   function getTierBadge() {
     return '';
   }
-
   function getProgressClass(score) {
     if (score >= 90) return 'progress-excellent';
     if (score >= 75) return 'progress-good';
     if (score >= 60) return 'progress-average';
     return 'progress-poor';
   }
-
   function getRankChangeIndicator(studentId, currentRank) {
     const previousRank = previousRankings[studentId];
     if (previousRank === undefined) return '';
-
     const change = previousRank - currentRank;
     if (change > 0) {
       return `<span class="rank-indicator rank-up" title="+${change} ↑">↑</span>`;
@@ -249,7 +218,6 @@
     }
     return '';
   }
-
   function formatAvgCell(formatted, raw) {
     const span = document.createElement('span');
     span.className = 'avg-badge';
@@ -261,7 +229,6 @@
     }
     return span;
   }
-
   function formatAttCell(formatted, raw, attended, total) {
     const span = document.createElement('span');
     span.className = 'att-badge';
@@ -274,7 +241,6 @@
     if (Number.isFinite(raw) && raw < 75) span.classList.add('att-weak');
     return span;
   }
-
   function renderStats(data) {
     statCards.innerHTML = '';
     const stats = data.stats || {};
@@ -290,23 +256,19 @@
         value: stats.groupAverageFormatted ?? '—',
       },
     ];
-
     for (const card of cards) {
       const el = document.createElement('div');
       el.className = 'stat-card';
       el.innerHTML = `<dt>${escapeHtml(card.label)}</dt><dd>${escapeHtml(card.value)}</dd>`;
       statCards.appendChild(el);
     }
-
     summaryPanel.hidden = false;
   }
-
   function hasFireStreak(grades) {
     if (!grades || !Array.isArray(grades)) return false;
     const highGrades = grades.filter((g) => (parseFloat(g.value) || 0) >= 95);
     return highGrades.length >= 5;
   }
-
   function renderTable(rows) {
     lastRows = rows.slice();
     tableBody.innerHTML = '';
@@ -316,10 +278,8 @@
       reportCountLine.hidden = true;
       return;
     }
-
     emptyState.hidden = true;
     table.hidden = false;
-
     const currentRankings = {};
     const groupRankings = {};
     rows.forEach((row) => {
@@ -331,7 +291,6 @@
         (a, b) => (parseFloat(b.average) || 0) - (parseFloat(a.average) || 0),
       );
     });
-
     rows.forEach((row, index) => {
       currentRankings[row.id] = index + 1;
       const groupRank =
@@ -363,9 +322,7 @@
         <td>${escapeHtml(row.group)}</td>
         <td class="num"></td>
         <td class="num"></td>
-        <td class="num"></td>
       `;
-
       const cells = tr.querySelectorAll('td');
       cells[4].appendChild(formatAvgCell(row.averageFormatted, row.average));
       cells[5].appendChild(
@@ -376,11 +333,6 @@
           row.totalLessons,
         ),
       );
-      const gradeCountSpan = document.createElement('span');
-      gradeCountSpan.className = 'grade-count';
-      gradeCountSpan.textContent = row.grades?.length || 0;
-      cells[6].appendChild(gradeCountSpan);
-
       tr.addEventListener('click', () => openStudentModal(row.id, groupRank));
       tr.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -388,17 +340,14 @@
           openStudentModal(row.id, groupRank);
         }
       });
-
       tableBody.appendChild(tr);
     });
-
     previousRankings = currentRankings;
   }
-
   async function loadMeta() {
     let res;
     try {
-      res = await fetchWithTimeout(apiUrl('/meta'));
+      res = await fetchWithTimeout(v1Url('/meta'));
     } catch (e) {
       if (e.name === 'AbortError') {
         throw new Error(
@@ -407,15 +356,11 @@
       }
       throw e;
     }
-
     if (!res.ok) throw new Error('Не вдалося отримати метадані');
     const data = await res.json();
-
     metaCount.textContent = String(data.studentCount);
     metaGrades.textContent = String(data.gradeCount);
-
     groupAverages = data.groupAverages || {};
-
     if (Array.isArray(data.periods) && data.periods.length) {
       periodSelect.innerHTML = '';
       for (const period of data.periods) {
@@ -425,7 +370,6 @@
         periodSelect.appendChild(option);
       }
     }
-
     groupSelect.innerHTML = '<option value="">Усі групи (весь потік)</option>';
     for (const group of data.groups || []) {
       const option = document.createElement('option');
@@ -433,7 +377,6 @@
       option.textContent = group;
       groupSelect.appendChild(option);
     }
-
     subjectSelect.innerHTML = '';
     for (const subject of data.subjects || []) {
       const option = document.createElement('option');
@@ -442,18 +385,14 @@
       subjectSelect.appendChild(option);
     }
   }
-
   async function loadReport() {
     errorBanner.hidden = true;
     skeletonLoading.hidden = false;
     loading.hidden = true;
     table.hidden = true;
     emptyState.hidden = true;
-
     try {
-      const res = await fetchWithTimeout(
-        `${apiUrl('/report')}?${buildQuery()}`,
-      );
+      const res = await fetchWithTimeout(`${v1Url('/report')}?${buildQuery()}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Помилка ${res.status}`);
       reportTitle.textContent = data.title || 'Звіт';
@@ -477,81 +416,96 @@
       skeletonLoading.hidden = true;
     }
   }
-
   function buildLessonRows(gradeInfo) {
-    const rows = [];
     const totalLessons = Number(gradeInfo.totalLessons) || 0;
     const attendedLessons = Math.max(
       0,
       Math.min(Number(gradeInfo.attendedLessons) || 0, totalLessons),
     );
     const absences = Math.max(0, totalLessons - attendedLessons);
-    const attendedScore =
-      attendedLessons > 0 ? Math.round(Number(gradeInfo.value) || 0) : null;
     const startMonth = gradeInfo.semester === 1 ? 8 : 1;
     const startDate = new Date(2025, startMonth, 2);
-
     const missInterval =
       absences > 0 ? Math.floor(totalLessons / absences) : totalLessons + 1;
-
+    const lessonFlags = [];
+    let currentAbsences = 0;
     for (let index = 0; index < totalLessons; index += 1) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + index * 7);
-
       const isAbsent =
         absences > 0 &&
         index % missInterval === 0 &&
-        rows.filter((r) => !r.present).length < absences;
-
+        currentAbsences < absences;
+      if (isAbsent) currentAbsences++;
+      lessonFlags.push({ present: !isAbsent });
+    }
+    if (currentAbsences < absences) {
+      for (
+        let i = lessonFlags.length - 1;
+        i >= 0 && currentAbsences < absences;
+        i--
+      ) {
+        if (lessonFlags[i].present) {
+          lessonFlags[i].present = false;
+          currentAbsences++;
+        }
+      }
+    }
+    const actualAttended = lessonFlags.filter((f) => f.present).length;
+    const attendedScoreArray = [];
+    if (actualAttended > 0) {
+      let remaining = Math.round(Number(gradeInfo.value) || 0);
+      for (let i = 0; i < actualAttended - 1; i++) {
+        const avg = remaining / (actualAttended - i);
+        const val = Math.min(
+          remaining,
+          Math.max(0, Math.floor(avg * 0.5 + Math.random() * avg)),
+        );
+        attendedScoreArray.push(val);
+        remaining -= val;
+      }
+      attendedScoreArray.push(remaining);
+      for (let i = attendedScoreArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [attendedScoreArray[i], attendedScoreArray[j]] = [
+          attendedScoreArray[j],
+          attendedScoreArray[i],
+        ];
+      }
+    }
+    const rows = [];
+    let scoreIndex = 0;
+    for (let index = 0; index < totalLessons; index += 1) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + index * 7);
+      const isPresent = lessonFlags[index].present;
+      const lessonScore = isPresent ? attendedScoreArray[scoreIndex++] : null;
       rows.push({
         date: date.toLocaleDateString('uk-UA', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
         }),
-        score: isAbsent ? '—' : attendedScore,
-        presence: isAbsent ? 'Відсутній' : 'Присутній',
-        mark: isAbsent ? 'Н' : attendedScore,
-        present: !isAbsent,
+        score: isPresent ? lessonScore : '—',
+        presence: isPresent ? 'Присутній' : 'Відсутній',
+        mark: isPresent ? lessonScore : 'Н',
+        present: isPresent,
       });
     }
-
-    let currentAbsences = rows.filter((r) => !r.present).length;
-    if (currentAbsences < absences) {
-      for (let i = rows.length - 1; i >= 0 && currentAbsences < absences; i--) {
-        if (rows[i].present) {
-          rows[i].score = '—';
-          rows[i].presence = 'Відсутній';
-          rows[i].mark = 'Н';
-          rows[i].present = false;
-          currentAbsences++;
-        }
-      }
-    }
-
     return rows;
   }
-
   function showSubjectDetails(gradeInfo) {
     subjectDetailsTitle.textContent = `${gradeInfo.subject} · ${gradeInfo.semester} семестр`;
     subjectDetailsBody.innerHTML = '';
-
     const oldBanner = subjectDetails.querySelector('.missed-info-banner');
     if (oldBanner) oldBanner.remove();
-
     const oldHeatmap = subjectDetails.querySelector('.attendance-heatmap');
     if (oldHeatmap) oldHeatmap.remove();
-
     const lessonRows = buildLessonRows(gradeInfo);
     const missedDates = lessonRows.filter((l) => !l.present).map((l) => l.date);
-
     const heatmapContainer = document.createElement('div');
     heatmapContainer.className = 'attendance-heatmap';
-
     const presentCount = lessonRows.filter((l) => l.present).length;
     const absentCount = lessonRows.filter((l) => !l.present).length;
     const score = gradeInfo.value || 0;
-
     const statsHeader = document.createElement('div');
     statsHeader.className = 'heatmap-stats';
     statsHeader.innerHTML = `
@@ -569,10 +523,8 @@
       </div>
     `;
     heatmapContainer.appendChild(statsHeader);
-
     const monthLabels = document.createElement('div');
     monthLabels.className = 'heatmap-months';
-
     const monthGroups = {};
     lessonRows.forEach((lesson) => {
       const date = new Date(lesson.date.split('.').reverse().join('-'));
@@ -582,7 +534,6 @@
       }
       monthGroups[monthKey].push(lesson);
     });
-
     Object.keys(monthGroups).forEach((month) => {
       const monthLabel = document.createElement('span');
       monthLabel.className = 'heatmap-month-label';
@@ -590,31 +541,32 @@
       monthLabels.appendChild(monthLabel);
     });
     heatmapContainer.appendChild(monthLabels);
-
     const gridContainer = document.createElement('div');
     gridContainer.className = 'heatmap-grid';
-
+    const maxLessonScore = Math.max(
+      ...lessonRows.map((l) => Number(l.score) || 0),
+      1,
+    );
     lessonRows.forEach((lesson) => {
       const cell = document.createElement('div');
       cell.className = 'heatmap-cell';
-
       if (!lesson.present) {
         cell.classList.add('heatmap-cell-absent');
         cell.title = `${lesson.date}: Відсутній (Н)`;
       } else {
-        const intensity = Math.min(4, Math.max(1, Math.ceil(score / 25)));
+        const lessonScoreNum = Number(lesson.score) || 0;
+        const intensity = Math.min(
+          4,
+          Math.max(1, Math.ceil((lessonScoreNum / maxLessonScore) * 4)),
+        );
         cell.classList.add(`heatmap-cell-level-${intensity}`);
         cell.title = `${lesson.date}: Присутній (${lesson.score} балів)`;
       }
-
       const date = new Date(lesson.date.split('.').reverse().join('-'));
       cell.dataset.weekday = date.getDay() || 7;
-
       gridContainer.appendChild(cell);
     });
-
     heatmapContainer.appendChild(gridContainer);
-
     const legend = document.createElement('div');
     legend.className = 'heatmap-legend';
     legend.innerHTML = `
@@ -629,12 +581,10 @@
       <span class="heatmap-legend-label">Більше</span>
     `;
     heatmapContainer.appendChild(legend);
-
     subjectDetails.insertBefore(
       heatmapContainer,
       subjectDetails.querySelector('.lessons-table'),
     );
-
     if (missedDates.length > 0) {
       const missedInfo = document.createElement('div');
       missedInfo.className = 'missed-info-banner';
@@ -644,14 +594,11 @@
         subjectDetails.querySelector('.lessons-table'),
       );
     }
-
     subjectDetails.hidden = false;
   }
-
   function getComparisonIndicator(grade, groupName) {
     const groupAvg = groupAverages[groupName];
     if (!Number.isFinite(groupAvg) || !Number.isFinite(grade)) return '';
-
     const diff = (grade - groupAvg).toFixed(1);
     if (diff > 0) {
       return `<span class="comparison-indicator comparison-above">+${diff} вище групи</span>`;
@@ -660,7 +607,6 @@
     }
     return `<span class="comparison-indicator comparison-above">= середній групи</span>`;
   }
-
   function renderModalGrades(grades, studentGroup) {
     modalGradesBody.innerHTML = '';
     if (!grades.length) {
@@ -669,7 +615,6 @@
       modalGradesBody.appendChild(tr);
       return;
     }
-
     for (const grade of grades) {
       const tr = document.createElement('tr');
       tr.className = 'clickable';
@@ -681,7 +626,6 @@
       const comparison = getComparisonIndicator(grade.value, studentGroup);
       const progressClass = getProgressClass(grade.value);
       const progressPercent = Math.min(100, Math.max(0, grade.value || 0));
-
       tr.innerHTML = `
         <td>${escapeHtml(grade.subject)} ${comparison}</td>
         <td class="num">${grade.semester ?? '—'}</td>
@@ -737,20 +681,16 @@
       modalGradesBody.appendChild(tr);
     }
   }
-
   function renderTrendChart(grades) {
     if (!trendChartCanvas || !window.Chart) return;
-
     if (trendChartInstance) {
       trendChartInstance.destroy();
       trendChartInstance = null;
     }
-
     if (!grades || !Array.isArray(grades) || grades.length === 0) {
       chartContainer.hidden = true;
       return;
     }
-
     const validGrades = grades.filter(
       (g) => g && g.subject && g.value !== undefined && g.value !== null,
     );
@@ -758,9 +698,7 @@
       chartContainer.hidden = true;
       return;
     }
-
     chartContainer.hidden = false;
-
     const subjectScores = {};
     validGrades.forEach((g) => {
       if (!subjectScores[g.subject]) {
@@ -772,7 +710,6 @@
         subjectScores[g.subject].count += 1;
       }
     });
-
     const labels = Object.keys(subjectScores).filter(
       (s) => subjectScores[s].count > 0,
     );
@@ -780,29 +717,23 @@
       const s = subjectScores[subject];
       return Math.round(s.sum / s.count);
     });
-
     if (labels.length === 0) {
       chartContainer.hidden = true;
       return;
     }
-
     const sortedData = labels
       .map((label, i) => ({ label, score: data[i] }))
       .sort((a, b) => b.score - a.score);
     const sortedLabels = sortedData.map((d) => d.label);
     const sortedScores = sortedData.map((d) => d.score);
-
     setTimeout(() => {
       const container = chartContainer;
       const canvas = trendChartCanvas;
-
       canvas.width = container.clientWidth || 400;
       canvas.height = 250;
       canvas.style.width = '100%';
       canvas.style.height = '250px';
-
       const ctx = canvas.getContext('2d');
-
       trendChartInstance = new window.Chart(ctx, {
         type: 'bar',
         data: {
@@ -871,13 +802,11 @@
       });
     }, 200);
   }
-
   async function openStudentModal(id, groupRank) {
     selectedRowId = id;
     document.querySelectorAll('.data-table tbody tr').forEach((tr) => {
       tr.toggleAttribute('aria-selected', Number(tr.dataset.id) === id);
     });
-
     modalTitle.textContent = 'Завантаження…';
     modalSub.textContent = '';
     modalGradesBody.innerHTML = '';
@@ -886,31 +815,27 @@
     chartContainer.hidden = true;
     modal.hidden = false;
     modalBackdrop.hidden = false;
-
     if (trendChartInstance) {
       trendChartInstance.destroy();
       trendChartInstance = null;
     }
-
     try {
       const periodQuery = periodSelect.value
         ? `?period=${encodeURIComponent(periodSelect.value)}`
         : '';
       const res = await fetchWithTimeout(
-        `${apiUrl(`/student/${id}/grades`)}${periodQuery}`,
+        `${v1Url(`/student/${id}/grades`)}${periodQuery}`,
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.error || 'Помилка завантаження студента');
       }
-
       modalTitle.textContent = data.student.fullName;
       updateUrlState({ studentId: id });
       modalSub.innerHTML = `Група ${data.student.group} <span style="color: var(--text-muted); margin-left: 8px;">Ранг у групі: <strong style="color: var(--accent);">#${groupRank || '—'}</strong></span>`;
       currentStudentGrades = data.items || data.grades || [];
       renderModalGrades(currentStudentGrades, data.student.group);
       renderTrendChart(currentStudentGrades);
-
       if (
         sortSelect.value === 'by-subject-average-desc' &&
         subjectSelect.value
@@ -922,7 +847,6 @@
           showSubjectDetails(gradeToShow);
         }
       }
-
       const summary = data.summary || {};
       modalAvg.textContent =
         `Середній бал: ${summary.averageFormatted ?? '—'} · ` +
@@ -936,7 +860,6 @@
           : e.message || '';
     }
   }
-
   function closeModal() {
     modal.hidden = true;
     modalBackdrop.hidden = true;
@@ -952,9 +875,7 @@
       .forEach((tr) => tr.removeAttribute('aria-selected'));
     updateUrlState({ removeStudent: true });
   }
-
   sortSelect.addEventListener('change', showSubjectField);
-
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     if (
@@ -967,7 +888,6 @@
     }
     loadReport();
   });
-
   btnReset.addEventListener('click', () => {
     periodSelect.value = 'all';
     groupSelect.value = '';
@@ -977,7 +897,6 @@
     if (subjectSelect.options[0]) subjectSelect.selectedIndex = 0;
     loadReport();
   });
-
   if (modalClose) {
     modalClose.addEventListener('click', (event) => {
       event.preventDefault();
@@ -985,18 +904,15 @@
       closeModal();
     });
   }
-
   if (modalBackdrop) {
     modalBackdrop.addEventListener('click', closeModal);
   }
-
   if (btnBackToGrades) {
     btnBackToGrades.addEventListener('click', () => {
       subjectDetails.hidden = true;
       modalGradesBody.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
-
   document.addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
@@ -1008,7 +924,6 @@
       event.preventDefault();
     }
   });
-
   quickSearchInput?.addEventListener('input', () => {
     const q = quickSearchInput.value.trim().toLowerCase();
     const filtered = q
@@ -1018,15 +933,12 @@
   });
   quickSearchClose?.addEventListener('click', closeQuickSearch);
   quickSearchBackdrop?.addEventListener('click', closeQuickSearch);
-
   modal.hidden = true;
   modalBackdrop.hidden = true;
   loading.hidden = true;
   chartContainer.hidden = true;
-
   let debounceTimer = null;
   const DEBOUNCE_DELAY = 300;
-
   function debouncedLoadReport() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
@@ -1042,7 +954,6 @@
       loadReport();
     }, DEBOUNCE_DELAY);
   }
-
   periodSelect.addEventListener('change', debouncedLoadReport);
   groupSelect.addEventListener('change', debouncedLoadReport);
   sortSelect.addEventListener('change', () => {
@@ -1051,7 +962,6 @@
   });
   subjectSelect.addEventListener('change', debouncedLoadReport);
   queryInput.addEventListener('input', debouncedLoadReport);
-
   showSubjectField();
   connectRealtime();
   loadMeta()

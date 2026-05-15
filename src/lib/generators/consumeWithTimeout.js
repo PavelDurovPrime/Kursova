@@ -1,5 +1,4 @@
 'use strict';
-
 async function consumeWithTimeout(iterator, seconds, onValue) {
   const callback = typeof onValue === 'function' ? onValue : () => {};
   const timeoutMs = Math.max(0, Number(seconds) * 1000);
@@ -7,7 +6,6 @@ async function consumeWithTimeout(iterator, seconds, onValue) {
   const deadline = start + timeoutMs;
   let iterations = 0;
   let lastValue = null;
-
   while (Date.now() < deadline) {
     const item = iterator.next();
     if (item.done) break;
@@ -15,12 +13,10 @@ async function consumeWithTimeout(iterator, seconds, onValue) {
     lastValue = item.value;
     await callback(item.value, iterations);
   }
-
   return {
     iterations,
     lastValue,
     elapsedMs: Date.now() - start,
   };
 }
-
 module.exports = { consumeWithTimeout };

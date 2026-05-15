@@ -15,5 +15,4 @@ class Grade {
     this.totalLessons = totalLessons;
   }
 }
-
 module.exports = { Grade };

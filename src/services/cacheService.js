@@ -1,10 +1,7 @@
 'use strict';
-
 const Redis = require('ioredis');
-
 const inMemoryCache = new Map();
 let redis = null;
-
 function getRedisClient() {
   if (!process.env.REDIS_URL) return null;
   if (!redis) {
@@ -16,7 +13,6 @@ function getRedisClient() {
   }
   return redis;
 }
-
 async function cacheGet(key) {
   const redisClient = getRedisClient();
   if (redisClient && redisClient.status === 'ready') {
@@ -31,7 +27,6 @@ async function cacheGet(key) {
   }
   return record.value;
 }
-
 async function cacheSet(key, value, ttlSec = 30) {
   const redisClient = getRedisClient();
   if (redisClient && redisClient.status === 'ready') {
@@ -43,7 +38,6 @@ async function cacheSet(key, value, ttlSec = 30) {
     expiresAt: Date.now() + ttlSec * 1000,
   });
 }
-
 async function cacheDeleteByPrefix(prefix) {
   const redisClient = getRedisClient();
   if (redisClient && redisClient.status === 'ready') {
@@ -53,14 +47,12 @@ async function cacheDeleteByPrefix(prefix) {
     }
     return;
   }
-
   for (const key of inMemoryCache.keys()) {
     if (key.startsWith(prefix)) {
       inMemoryCache.delete(key);
     }
   }
 }
-
 module.exports = {
   cacheDeleteByPrefix,
   cacheGet,

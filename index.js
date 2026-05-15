@@ -18,7 +18,6 @@ const {
   applyGroupFilter,
   buildReportView,
 } = require('./reportView');
-
 function parseArgs(argv) {
   const args = {};
   for (let i = 2; i < argv.length; i += 1) {
@@ -35,15 +34,12 @@ function parseArgs(argv) {
   }
   return args;
 }
-
 function formatAvg(value) {
   return Number.isFinite(value) ? Number(value).toFixed(2) : '-';
 }
-
 function formatPct(value) {
   return Number.isFinite(value) ? `${Number(value).toFixed(1)}%` : '-';
 }
-
 function printStudentsTable(rows) {
   console.log(
     'ПІБ                            | Група             | Оц. | Середн. | Відвід.%',
@@ -51,20 +47,17 @@ function printStudentsTable(rows) {
   console.log(
     '-------------------------------|------------------|-----|---------|--------',
   );
-
   for (const r of rows) {
     const fullNameStr = String(r.fullName).padEnd(30, ' ');
     const groupStr = String(r.group).padEnd(16, ' ');
     const cnt = String(r.gradeCount ?? '—').padEnd(3, ' ');
     const avgStr = formatAvg(r.average).padStart(7, ' ');
     const attStr = formatPct(r.attendancePercent).padStart(6, ' ');
-
     console.log(
       `${fullNameStr} | ${groupStr} | ${cnt} | ${avgStr} | ${attStr}`,
     );
   }
 }
-
 function printReportFooter(stats, scopeAverageCaption) {
   const yellow = (text) => chalk.yellow(text);
   if (stats.bestStudent) {
@@ -78,25 +71,21 @@ function printReportFooter(stats, scopeAverageCaption) {
   } else {
     console.log(yellow('Найкращий студент курсу: —'));
   }
-
   console.log(
     yellow(`${scopeAverageCaption}: ${formatAvg(stats.groupAverage)}`),
   );
 }
-
 function normalizeFormat(value) {
   const v = String(value || '')
     .trim()
     .toLowerCase();
   return v === 'html' ? 'html' : 'txt';
 }
-
 function parseTopArg(args) {
   if (args.top === undefined) return null;
   const n = Number.parseInt(String(args.top), 10);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
-
 async function showMenu(students, allGrades) {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -106,9 +95,7 @@ async function showMenu(students, allGrades) {
     new Promise((resolve) => {
       rl.question(q, (answer) => resolve(answer));
     });
-
   const groupNames = Array.from(new Set(students.map((s) => s.group))).sort();
-
   const choosePeriod = async () => {
     console.log('');
     console.log('Період:');
@@ -120,36 +107,28 @@ async function showMenu(students, allGrades) {
     if (c === '3') return '2';
     return 'all';
   };
-
   const chooseScope = async (grades) => {
     console.log('');
     console.log('Показати звіт:');
     console.log('1 — весь потік');
     console.log('2 — конкретна група');
     const scopeChoice = String(await ask('Ваш вибір: ')).trim();
-
     if (scopeChoice === '1' || !scopeChoice) {
       return applyGroupFilter(students, grades, null);
     }
-
     const n = Number(scopeChoice);
     if (n !== 2) return applyGroupFilter(students, grades, null);
-
     console.log('');
     console.log('Доступні групи:');
     groupNames.forEach((g, idx) => console.log(`${idx + 1} — ${g}`));
-
     const picked = Number(String(await ask('Оберіть номер групи: ')).trim());
     if (!Number.isFinite(picked) || picked < 1 || picked > groupNames.length) {
       return applyGroupFilter(students, grades, null);
     }
-
     const groupName = groupNames[picked - 1];
     return applyGroupFilter(students, grades, groupName);
   };
-
   let currentReport = null;
-
   while (true) {
     console.log('');
     console.log('Меню:');
@@ -160,18 +139,14 @@ async function showMenu(students, allGrades) {
     console.log('5 — Відсортувати за відвідуваністю (%).');
     console.log('6 — Зберегти поточний звіт у файл.');
     console.log('0 — Вихід.');
-
     const choice = String(await ask('Ваш вибір: ')).trim();
     if (!process.stdin.isTTY && (!choice || choice === 'undefined')) {
       break;
     }
     const n = Number(choice);
-
     if (n === 0) break;
-
     const periodKey = await choosePeriod();
     const periodGrades = filterGradesByPeriod(allGrades, periodKey);
-
     if (n === 1) {
       const scope = await chooseScope(periodGrades);
       const rows = buildStudentReport(scope.scopedStudents, scope.scopedGrades);
@@ -183,7 +158,6 @@ async function showMenu(students, allGrades) {
         stats,
         scopeAverageCaption: scope.scopeAverageCaption,
       };
-
       console.log(`\n${title}`);
       printStudentsTable(rows);
       printReportFooter(stats, scope.scopeAverageCaption);
@@ -219,7 +193,6 @@ async function showMenu(students, allGrades) {
         console.log('Назва предмета не може бути порожньою.');
         continue;
       }
-
       const scope = await chooseScope(periodGrades);
       currentReport = buildReportView({
         students: scope.scopedStudents,
@@ -276,16 +249,13 @@ async function showMenu(students, allGrades) {
       console.log('Невірний вибір. Спробуйте ще раз.');
     }
   }
-
   rl.close();
 }
-
 async function main() {
   const args = parseArgs(process.argv);
   const top = parseTopArg(args);
   const reportFormat = args.format ? normalizeFormat(args.format) : null;
   const period = normalizePeriod(args.period || 'all');
-
   const dataFile = path.join(process.cwd(), 'data', 'grades.json');
   let students;
   let grades;
@@ -306,24 +276,18 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-
   const gradesPeriod = filterGradesByPeriod(grades, period);
-
   if (args.action === undefined) {
     await showMenu(students, grades);
     return;
   }
-
   const groupName = args.group ? String(args.group).trim() : null;
   const { scopedStudents, scopedGrades, scopeLabel, scopeAverageCaption } =
     applyGroupFilter(students, gradesPeriod, groupName);
-
   const action = args.action;
-
   if (action === 'report') {
     const sortStrategy = args.sort || 'by-name';
     const subject = String(args.subject || '').trim();
-
     if (sortStrategy === 'by-subject-average-desc' && !subject) {
       console.error(
         'Для сортування по предмету потрібно передати --subject "<назва предмету>".',
@@ -331,7 +295,6 @@ async function main() {
       process.exitCode = 1;
       return;
     }
-
     const view = buildReportView({
       students: scopedStudents,
       grades: scopedGrades,
@@ -340,14 +303,12 @@ async function main() {
       scopeLabel,
       period,
     });
-
     const finalRows = top ? view.rows.slice(0, top) : view.rows;
     console.log(`\n${view.title}`);
     if (top) console.log(`Показано перші ${top} результат(ів).`);
     printStudentsTable(finalRows);
     const statsFinal = buildReportStats(finalRows);
     printReportFooter(statsFinal, scopeAverageCaption);
-
     if (reportFormat) {
       const filePath = await saveReportToFile({
         title: view.title,
@@ -366,13 +327,11 @@ async function main() {
       process.exitCode = 1;
       return;
     }
-
     const matches = findStudentsByName(
       buildStudentReport(scopedStudents, scopedGrades),
       query,
     );
     let sorted = matches;
-
     const sortStrategy = args.sort;
     if (sortStrategy === 'by-subject-average-desc') {
       const subject = String(args.subject || '').trim();
@@ -383,7 +342,6 @@ async function main() {
         process.exitCode = 1;
         return;
       }
-
       const subjectReport = buildStudentSubjectAverage(
         matches,
         scopedGrades,
@@ -393,7 +351,6 @@ async function main() {
     } else if (sortStrategy) {
       sorted = sortStudents(matches, sortStrategy);
     }
-
     const finalList = top ? sorted.slice(0, top) : sorted;
     console.log(`\nРезультати пошуку за "${query}":`);
     if (finalList.length === 0) {
@@ -403,7 +360,6 @@ async function main() {
       printStudentsTable(finalList);
       const statsFinal = buildReportStats(finalList);
       printReportFooter(statsFinal, scopeAverageCaption);
-
       if (reportFormat) {
         const title = `Звіт за пошуком: ${query} — ${scopeLabel}`;
         const filePath = await saveReportToFile({
@@ -428,7 +384,6 @@ async function main() {
         process.exitCode = 1;
         return;
       }
-
       const view = buildReportView({
         students: scopedStudents,
         grades: scopedGrades,
@@ -443,7 +398,6 @@ async function main() {
       printStudentsTable(finalRows);
       const statsFinal = buildReportStats(finalRows);
       printReportFooter(statsFinal, scopeAverageCaption);
-
       if (reportFormat) {
         const filePath = await saveReportToFile({
           title: view.title,
@@ -459,13 +413,11 @@ async function main() {
       const reportRows = buildStudentAverage(scopedStudents, scopedGrades);
       const sortedRows = sortStudents(reportRows, sortStrategy);
       const finalRows = top ? sortedRows.slice(0, top) : sortedRows;
-
       console.log(`\nСередній бал по студентах (сортування: ${sortStrategy})`);
       if (top) console.log(`Показано перші ${top} результат(ів).`);
       printStudentsTable(finalRows);
       const statsFinal = buildReportStats(finalRows);
       printReportFooter(statsFinal, scopeAverageCaption);
-
       if (reportFormat) {
         const title = `Середній бал по студентах (сортування: ${sortStrategy}) — ${scopeLabel}`;
         const filePath = await saveReportToFile({
@@ -486,7 +438,6 @@ async function main() {
     process.exitCode = 1;
   }
 }
-
 main().catch((e) => {
   console.error(e);
   process.exitCode = 1;

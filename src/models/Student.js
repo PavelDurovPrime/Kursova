@@ -5,5 +5,4 @@ class Student {
     this.group = group;
   }
 }
-
 module.exports = { Student };

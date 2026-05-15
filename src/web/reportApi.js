@@ -12,7 +12,6 @@ const {
   buildReportView,
   periodCaption,
 } = require('../reportView');
-
 const ALLOWED_SORT = new Set([
   'by-name',
   'by-average-desc',
@@ -20,12 +19,10 @@ const ALLOWED_SORT = new Set([
   'by-subject-average-desc',
   'by-attendance-desc',
 ]);
-
 function normalizeSort(value) {
   const s = String(value || 'by-name').trim();
   return ALLOWED_SORT.has(s) ? s : 'by-name';
 }
-
 class SubjectRequiredError extends Error {
   constructor() {
     super('Потрібна назва предмета');
@@ -33,7 +30,6 @@ class SubjectRequiredError extends Error {
     this.code = 'SUBJECT_REQUIRED';
   }
 }
-
 function computeWebReport(
   students,
   grades,
@@ -45,13 +41,10 @@ function computeWebReport(
   const groupTrim = group ? String(group).trim() : '';
   const { scopedStudents, scopedGrades, scopeLabel, scopeAverageCaption } =
     applyGroupFilter(students, periodFiltered, groupTrim || null);
-
   const q = query ? String(query).trim() : '';
   let rows;
   let title;
-
   const periodHuman = periodCaption(periodNorm);
-
   if (q) {
     const matches = findStudentsByName(
       buildStudentReport(scopedStudents, scopedGrades),
@@ -92,13 +85,11 @@ function computeWebReport(
     rows = view.rows;
     title = view.title;
   }
-
   const topN =
     top !== undefined && top !== '' ? Number.parseInt(String(top), 10) : null;
   const limited =
     Number.isFinite(topN) && topN > 0 ? rows.slice(0, topN) : rows;
   const stats = buildReportStats(limited);
-
   return {
     title,
     rows: limited,
@@ -109,19 +100,16 @@ function computeWebReport(
     period: periodNorm,
   };
 }
-
 function uniqueSubjects(grades) {
   return [
     ...new Set((grades || []).map((g) => g.subject).filter(Boolean)),
   ].sort((a, b) => a.localeCompare(b, 'uk'));
 }
-
 function uniqueGroups(students) {
   return [
     ...new Set((students || []).map((s) => s.group).filter(Boolean)),
   ].sort((a, b) => a.localeCompare(b, 'uk'));
 }
-
 module.exports = {
   computeWebReport,
   normalizeSort,

@@ -1,5 +1,4 @@
 'use strict';
-
 const WEEK_DAYS = [
   'Monday',
   'Tuesday',
@@ -9,7 +8,6 @@ const WEEK_DAYS = [
   'Saturday',
   'Sunday',
 ];
-
 function* fibonacciGenerator(first = 0, second = 1) {
   let prev = Number(first);
   let curr = Number(second);
@@ -20,7 +18,6 @@ function* fibonacciGenerator(first = 0, second = 1) {
     curr = next;
   }
 }
-
 function* weekDayGenerator() {
   let index = 0;
   while (true) {
@@ -28,7 +25,6 @@ function* weekDayGenerator() {
     index = (index + 1) % WEEK_DAYS.length;
   }
 }
-
 module.exports = {
   fibonacciGenerator,
   weekDayGenerator,
