@@ -15,7 +15,6 @@
 - **Backend:** Node.js + Express
 - **Database:** SQLite (Prisma)
 - **Frontend:** JavaScript + Chart.js
-- **Auth:** JWT tokens
 
 ## Архітектура
 
