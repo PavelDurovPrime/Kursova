@@ -72,7 +72,6 @@
       try {
         const message = JSON.parse(event.data);
         if (message.type === 'grade.updated') {
-          showToast('Рейтинг оновлено в реальному часі');
           loadReport();
         }
       } catch (e) {
@@ -401,7 +400,7 @@
       );
       renderStats(data);
       renderTable(data.rows || []);
-      showToast('Звіт оновлено');
+
       updateExportLinks();
       updateUrlState();
     } catch (e) {
@@ -639,44 +638,6 @@
         </td>
         <td class="modal-att">${escapeHtml(attendance)}${escapeHtml(misses)}</td>
       `;
-      const valueEl = tr.querySelector('.grade-value');
-      if (grade.gradeId) {
-        const reopenStudentId = selectedRowId;
-        valueEl.title = 'Double click to edit';
-        valueEl.addEventListener('dblclick', async () => {
-          const input = window.prompt(
-            'Нове значення (0..100):',
-            String(grade.value),
-          );
-          if (input === null) return;
-          const parsed = Number(input);
-          if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
-            showToast('Некоректне значення');
-            return;
-          }
-          const token = window.localStorage.getItem('gl_token');
-          if (!token) {
-            showToast('Потрібен JWT токен у localStorage: gl_token');
-            return;
-          }
-          const response = await fetch(v1Url(`/grades/${grade.gradeId}`), {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ value: parsed }),
-          });
-          if (!response.ok) {
-            showToast('Не вдалося оновити оцінку');
-            return;
-          }
-          grade.value = parsed;
-          showToast('Оцінку оновлено');
-          await loadReport();
-          await openStudentModal(reopenStudentId, 0);
-        });
-      }
       tr.addEventListener('click', () => showSubjectDetails(grade));
       modalGradesBody.appendChild(tr);
     }

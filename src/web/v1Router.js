@@ -91,14 +91,14 @@ function serializeReportPayload(payload) {
     stats: {
       bestStudent: payload.stats.bestStudent
         ? {
-            id: payload.stats.bestStudent.id,
-            fullName: payload.stats.bestStudent.fullName,
-            group: payload.stats.bestStudent.group,
-            average: Number.isFinite(payload.stats.bestStudent.average)
-              ? payload.stats.bestStudent.average
-              : null,
-            averageFormatted: formatAvg(payload.stats.bestStudent.average),
-          }
+          id: payload.stats.bestStudent.id,
+          fullName: payload.stats.bestStudent.fullName,
+          group: payload.stats.bestStudent.group,
+          average: Number.isFinite(payload.stats.bestStudent.average)
+            ? payload.stats.bestStudent.average
+            : null,
+          averageFormatted: formatAvg(payload.stats.bestStudent.average),
+        }
         : null,
       groupAverage: Number.isFinite(payload.stats.groupAverage)
         ? payload.stats.groupAverage
@@ -177,7 +177,7 @@ function makeApiV1Router({ dataPath, getDataset }) {
         const groupAvg =
           studentAverages.length > 0
             ? studentAverages.reduce((sum, s) => sum + s.average, 0) /
-              studentAverages.length
+            studentAverages.length
             : 0;
         const allGroupGrades = group.students.flatMap((s) =>
           grades.filter((g) => g.studentId === s.id),
@@ -532,7 +532,7 @@ function makeApiV1Router({ dataPath, getDataset }) {
         }
         next(err);
       } finally {
-        fs.unlink(req.file.path, () => {});
+        fs.unlink(req.file.path, () => { });
       }
       if (controller.signal.aborted) {
         return res.end();
@@ -619,7 +619,7 @@ function makeApiV1Router({ dataPath, getDataset }) {
       const avg =
         student.grades.length > 0
           ? student.grades.reduce((sum, g) => sum + (g.score || 0), 0) /
-            student.grades.length
+          student.grades.length
           : 0;
       queue.enqueue(
         {

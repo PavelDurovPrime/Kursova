@@ -417,7 +417,10 @@
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${ctx.raw}${label.includes('%') ? '%' : ''}`,
+              label: (ctx) => {
+                const v = Number(ctx.raw).toFixed(1);
+                return `${v}${label.includes('%') ? '%' : ''}`;
+              },
             },
           },
         },
@@ -428,6 +431,10 @@
             grid: { color: 'rgba(0, 0, 0, 0.05)' },
             ticks: {
               font: { size: maxGroups > 6 ? 10 : 12 },
+              callback: function (value) {
+                if (horizontal) return this.getLabelForValue(value);
+                return Number(value).toFixed(1);
+              },
             },
           },
           x: {
@@ -436,6 +443,10 @@
             grid: { color: 'rgba(0, 0, 0, 0.05)' },
             ticks: {
               font: { size: maxGroups > 6 ? 10 : 12 },
+              callback: function (value) {
+                if (!horizontal) return this.getLabelForValue(value);
+                return Number(value).toFixed(1);
+              },
             },
           },
         },
@@ -615,7 +626,7 @@
 
       const excellentCount = group.topStudents
         ? group.topStudents.filter((s) => (parseFloat(s.average) || 0) >= 90)
-            .length
+          .length
         : 0;
 
       card.innerHTML = `
